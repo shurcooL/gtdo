@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -61,15 +62,39 @@ func main() {
 	cacheClient := &http.Client{Transport: transport}
 
 	sg = vcsclient.New(&url.URL{Scheme: "http", Host: "vcsstore.sourcegraph.com"}, cacheClient)
+	sg.UserAgent = "gotools.org backend " + sg.UserAgent
 
 	http.Handle("/parser/", http.StripPrefix("/parser", http.HandlerFunc(parserHandler)))
 	http.Handle("/inline/", http.StripPrefix("/inline", markdown_http.MarkdownHandlerFunc(inlineHandler)))
 	http.Handle("/raw/", http.StripPrefix("/raw", rawHandler()))                                     // DEBUG.
 	http.Handle("/bpkg/", http.StripPrefix("/bpkg", markdown_http.MarkdownHandlerFunc(bpkgHandler))) // DEBUG.
-	http.Handle("/command-r.go.js", gopherjs_http.GoFiles("../56/script.go"))
-	http.HandleFunc("/command-r.css", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "../56/style.css") })
-	http.Handle("/table-of-contents.go.js", gopherjs_http.GoFiles("../74/script.go"))
-	http.HandleFunc("/table-of-contents.css", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "../74/style.css") })
+
+	// Dev, hot reload.
+	http.Handle("/command-r.go.js", gopherjs_http.GoFiles("../frontend/select-list-view/main.go"))
+	http.HandleFunc("/command-r.css", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "../frontend/select-list-view/style.css")
+	})
+	http.Handle("/table-of-contents.go.js", gopherjs_http.GoFiles("../frontend/table-of-contents/main.go"))
+	http.HandleFunc("/table-of-contents.css", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "../frontend/table-of-contents/style.css")
+	})
+
+	// HACK: Prod, static.
+	http.Handle("/parser/favicon.ico", http.NotFoundHandler())
+	http.HandleFunc("/parser/robots.txt", func(w http.ResponseWriter, req *http.Request) {
+		io.WriteString(w, `User-agent: *
+Disallow: /
+`)
+	})
+	http.Handle("/parser/command-r.go.js", gopherjs_http.StaticGoFiles("../frontend/select-list-view/main.go"))
+	http.HandleFunc("/parser/command-r.css", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "../frontend/select-list-view/style.css")
+	})
+	http.Handle("/parser/table-of-contents.go.js", gopherjs_http.StaticGoFiles("../frontend/table-of-contents/main.go"))
+	http.HandleFunc("/parser/table-of-contents.css", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "../frontend/table-of-contents/style.css")
+	})
+
 	panic(http.ListenAndServe(*httpFlag, nil))
 }
 
@@ -134,6 +159,13 @@ func parserHandler(w http.ResponseWriter, req *http.Request) {
 	rev := req.URL.Query().Get("rev")
 	_, _ = importPath, rev
 
+	log.Printf("req: importPath=%q rev=%q.\n", importPath, rev)
+
+	if importPath == "" {
+		http.ServeFile(w, req, "./index.html")
+		return
+	}
+
 	bpkg, fs, err := try(req)
 	if err != nil {
 		panic(err)
@@ -170,11 +202,14 @@ func parserHandler(w http.ResponseWriter, req *http.Request) {
 		</style>
 	</head>
 	<body>
-		<div style="width: 100%; background-color: hsl(209, 51%, 92%); border-bottom: 1px solid hsl(209, 51%, 88%);">
-			<span style="margin-left: 30px; background-color: hsl(209, 51%, 88%); padding: 15px; display: inline-block;">Go Code</span>
-			<span style="padding: 15px; display: inline-block;"><strong>Cmd+R</strong>: Go To Symbol...</span>
-		</div>
-		<article class="markdown-body entry-content" style="padding: 30px;">`)
+		<div style="position: relative; min-height: 100%;">
+			<div style="width: 100%; background-color: hsl(209, 51%, 92%);">
+				<span style="margin-left: 30px; padding: 15px; display: inline-block;"><strong>Go Tools</strong></span>
+				<span style="background-color: hsl(209, 51%, 88%); padding: 15px; display: inline-block;">Code</span>
+				<span style="padding: 15px; display: inline-block;"><strong>Cmd+R</strong>: Go To Symbol...</span>
+			</div>
+			<div style="padding-bottom: 50px;">
+				<article class="markdown-body entry-content" style="padding: 30px;">`)
 
 	fmt.Fprintf(w, "<h1>%s</h1>", html.EscapeString(importPath))
 
@@ -260,10 +295,17 @@ func parserHandler(w http.ResponseWriter, req *http.Request) {
 		io.WriteString(w, `</pre></div>`)
 	}
 
-	io.WriteString(w, `</article>`)
-	io.WriteString(w, `<script type="text/javascript" src="/command-r.go.js"></script>`)
-	io.WriteString(w, `<script type="text/javascript" src="/table-of-contents.go.js"></script>`)
-	io.WriteString(w, `</body></html>`)
+	io.WriteString(w, `</article>
+			</div>
+			<div style="position: absolute; bottom: 0; left: 0; width: 100%; text-align: right; background-color: hsl(209, 51%, 92%);">
+				<span style="margin-right: 15px; padding: 15px; display: inline-block;"><a href="https://github.com/shurcooL/gtdo/issues" target="_blank">Report an issue</a></span>
+			</div>
+		</div>
+		<script type="text/javascript" src="/command-r.go.js"></script>
+		<script type="text/javascript" src="/table-of-contents.go.js"></script>
+	</body>
+</html>
+`)
 }
 
 func inlineHandler(req *http.Request) ([]byte, error) {
