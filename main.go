@@ -58,7 +58,7 @@ func main() {
 	}
 	cacheClient := &http.Client{Transport: transport}
 
-	sg = vcsclient.New(&url.URL{Scheme: "http", Host: "vcsstore.sourcegraph.com"}, cacheClient)
+	sg = vcsclient.New(&url.URL{Scheme: "http", Host: "localhost:26203"}, cacheClient)
 	sg.UserAgent = "gotools.org backend " + sg.UserAgent
 
 	http.HandleFunc("/", codeHandler)
