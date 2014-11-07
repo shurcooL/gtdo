@@ -26,12 +26,9 @@ import (
 
 	"code.google.com/p/go.tools/godoc/vfs"
 	"github.com/shurcooL/go-goon"
-	"github.com/shurcooL/go/exp/11"
 	"github.com/shurcooL/go/gists/gist5639599"
 	"github.com/shurcooL/go/github_flavored_markdown/sanitized_anchor_name"
 	"github.com/shurcooL/go/gopherjs_http"
-	"github.com/shurcooL/go/markdown_http"
-	"github.com/shurcooL/go/raw_file_server"
 	vcs2 "github.com/shurcooL/go/vcs"
 	"github.com/shurcooL/go/vfs_util"
 	"github.com/sourcegraph/annotate"
@@ -64,78 +61,35 @@ func main() {
 	sg = vcsclient.New(&url.URL{Scheme: "http", Host: "vcsstore.sourcegraph.com"}, cacheClient)
 	sg.UserAgent = "gotools.org backend " + sg.UserAgent
 
-	http.Handle("/parser/", http.StripPrefix("/parser", http.HandlerFunc(parserHandler)))
-	http.Handle("/inline/", http.StripPrefix("/inline", markdown_http.MarkdownHandlerFunc(inlineHandler)))
-	http.Handle("/raw/", http.StripPrefix("/raw", rawHandler()))                                     // DEBUG.
-	http.Handle("/bpkg/", http.StripPrefix("/bpkg", markdown_http.MarkdownHandlerFunc(bpkgHandler))) // DEBUG.
+	http.HandleFunc("/", codeHandler)
 
 	// Dev, hot reload.
-	http.Handle("/command-r.go.js", gopherjs_http.GoFiles("../frontend/select-list-view/main.go"))
+	/*http.Handle("/command-r.go.js", gopherjs_http.GoFiles("../frontend/select-list-view/main.go"))
 	http.HandleFunc("/command-r.css", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "../frontend/select-list-view/style.css")
 	})
 	http.Handle("/table-of-contents.go.js", gopherjs_http.GoFiles("../frontend/table-of-contents/main.go"))
 	http.HandleFunc("/table-of-contents.css", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "../frontend/table-of-contents/style.css")
-	})
+	})*/
 
 	// HACK: Prod, static.
-	http.Handle("/parser/favicon.ico", http.NotFoundHandler())
-	http.HandleFunc("/parser/robots.txt", func(w http.ResponseWriter, req *http.Request) {
+	http.Handle("/favicon.ico", http.NotFoundHandler())
+	http.HandleFunc("/robots.txt", func(w http.ResponseWriter, req *http.Request) {
 		io.WriteString(w, `User-agent: *
 Disallow: /
 `)
 	})
-	http.Handle("/parser/command-r.go.js", gopherjs_http.StaticGoFiles("../frontend/select-list-view/main.go"))
-	http.HandleFunc("/parser/command-r.css", func(w http.ResponseWriter, r *http.Request) {
+	http.Handle("/command-r.go.js", gopherjs_http.StaticGoFiles("../frontend/select-list-view/main.go"))
+	http.HandleFunc("/command-r.css", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "../frontend/select-list-view/style.css")
 	})
-	http.Handle("/parser/table-of-contents.go.js", gopherjs_http.StaticGoFiles("../frontend/table-of-contents/main.go"))
-	http.HandleFunc("/parser/table-of-contents.css", func(w http.ResponseWriter, r *http.Request) {
+	http.Handle("/table-of-contents.go.js", gopherjs_http.StaticGoFiles("../frontend/table-of-contents/main.go"))
+	http.HandleFunc("/table-of-contents.css", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "../frontend/table-of-contents/style.css")
 	})
 
 	panic(http.ListenAndServe(*httpFlag, nil))
-}
-
-func rawHandler() http.Handler {
-	const repoImportPath = "github.com/shurcooL/gostatus"
-
-	cloneUrl, err := url.Parse("https://" + repoImportPath)
-	if err != nil {
-		panic(err)
-	}
-
-	r, err := sg.Repository("git", cloneUrl)
-	if err != nil {
-		panic(err)
-	}
-
-	fs, err := r.FileSystem(vcs.CommitID("2d8bfd02e0632a6fb6617eb5152501759dc20cd5"))
-	if err != nil {
-		panic(err)
-	}
-
-	fs = vfs_util.NewDebugFS(fs)
-
-	return raw_file_server.New(fs)
-}
-
-func bpkgHandler(req *http.Request) ([]byte, error) {
-	var w = new(bytes.Buffer)
-
-	bpkg, _, err := try(req)
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Fprintln(w, "```")
-	fmt.Fprintln(w, bpkg.ImportPath)
-	fmt.Fprintln(w, bpkg.Dir)
-	fmt.Fprintln(w, append(bpkg.GoFiles, bpkg.CgoFiles...))
-	fmt.Fprintln(w, "```")
-
-	return w.Bytes(), nil
 }
 
 // TODO: Dedup.
@@ -154,7 +108,7 @@ var gfmHtmlConfig = syntaxhighlight.HTMLConfig{
 	Decimal:       "m",
 }
 
-func parserHandler(w http.ResponseWriter, req *http.Request) {
+func codeHandler(w http.ResponseWriter, req *http.Request) {
 	importPath := req.URL.Path[1:]
 	rev := req.URL.Query().Get("rev")
 	_, _ = importPath, rev
@@ -306,59 +260,6 @@ func parserHandler(w http.ResponseWriter, req *http.Request) {
 	</body>
 </html>
 `)
-}
-
-func inlineHandler(req *http.Request) ([]byte, error) {
-	importPath := req.URL.Path[1:]
-	rev := req.URL.Query().Get("rev")
-	_ = rev
-
-	var w = new(bytes.Buffer)
-
-	/*repo, commitId, err := repoFromRequest(req)
-	if err != nil {
-		return nil, err
-	}
-
-	var fs vfs.FileSystem
-	fs, err = repo.FileSystem(commitId)
-	if err != nil {
-		return nil, err
-	}*/
-
-	/*fs := vfs.OS("")
-
-	fs = vfs_util.NewDebugFS(fs)
-
-	context := buildContextUsingFS(fs)
-
-	bpkg, err := context.Import(importPath, "", 0)
-	if err != nil {
-		return nil, err
-	}*/
-
-	bpkg, fs, err := try(req)
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Fprintln(w, "# "+importPath)
-	fmt.Fprintln(w)
-	for _, goFile := range append(bpkg.GoFiles, bpkg.CgoFiles...) {
-		fmt.Fprintln(w, "-\t"+goFile)
-	}
-	fmt.Fprintln(w)
-
-	fset, merged, err := merge(bpkg, fs)
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Fprintln(w, "```Go")
-	exp11.WriteMergedPackage(w, fset, merged)
-	fmt.Fprintln(w, "```")
-
-	return w.Bytes(), nil
 }
 
 func try(req *http.Request) (*build.Package, vfs.FileSystem, error) {
