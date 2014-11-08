@@ -125,12 +125,6 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		panic(err)
 	}
 
-	/*fset, merged, err := merge(bpkg, fs)
-	_ = fset
-	if err != nil {
-		panic(err)
-	}*/
-
 	fmt.Fprintf(w, `<html>
 	<head>
 		<title>%s - Go Code</title>`, html.EscapeString(importPath))
@@ -303,32 +297,6 @@ func try(req *http.Request) (*build.Package, vfs.FileSystem, error) {
 	}
 
 	return nil, nil, MultiError{err0, err1}
-}
-
-func merge(bpkg *build.Package, fs vfs.FileSystem) (*token.FileSet, *ast.File, error) {
-	var fset = token.NewFileSet()
-	var apkg *ast.Package
-	{
-		filenames := append(bpkg.GoFiles, bpkg.CgoFiles...)
-		files := make(map[string]*ast.File, len(filenames))
-		for _, filename := range filenames {
-			file, err := fs.Open(path.Join(bpkg.Dir, filename))
-			if err != nil {
-				return nil, nil, err
-			}
-			fileAst, err := parser.ParseFile(fset, filepath.Join(bpkg.Dir, filename), file, parser.ParseComments)
-			if err != nil {
-				return nil, nil, err
-			}
-			files[filename] = fileAst // TODO: Figure out if filename or full path are to be used (the key of this map doesn't seem to be used anywhere!)
-		}
-		apkg = &ast.Package{Name: bpkg.Name, Files: files}
-	}
-
-	const astMergeMode = 0*ast.FilterFuncDuplicates | 0*ast.FilterUnassociatedComments | ast.FilterImportDuplicates
-	merged := ast.MergePackageFiles(apkg, astMergeMode)
-
-	return fset, merged, nil
 }
 
 func importPathToRepoGuess(importPath string) (repoImportPath string, cloneUrl *url.URL, vcsRepo vcs2.Vcs, err error) {
