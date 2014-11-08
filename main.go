@@ -74,7 +74,7 @@ func main() {
 	})*/
 
 	// HACK: Prod, static.
-	http.Handle("/favicon.ico", http.NotFoundHandler())
+	http.Handle("/favicon.ico/", http.NotFoundHandler())
 	http.HandleFunc("/robots.txt", func(w http.ResponseWriter, req *http.Request) {
 		io.WriteString(w, `User-agent: *
 Disallow: /
