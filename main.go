@@ -66,6 +66,7 @@ func main() {
 	sg.UserAgent = "gotools.org backend " + sg.UserAgent
 
 	http.HandleFunc("/", codeHandler)
+	http.Handle("/assets/", http.FileServer(http.Dir(".")))
 
 	// Dev, hot reload.
 	/*http.Handle("/command-r.go.js", gopherjs_http.GoFiles("../frontend/select-list-view/main.go"))
@@ -96,22 +97,6 @@ Disallow: /
 	panic(http.ListenAndServe(*httpFlag, nil))
 }
 
-// TODO: Dedup.
-var gfmHtmlConfig = syntaxhighlight.HTMLConfig{
-	String:        "s",
-	Keyword:       "k",
-	Comment:       "c",
-	Type:          "n",
-	Literal:       "lit",
-	Punctuation:   "p",
-	Plaintext:     "n",
-	Tag:           "tag",
-	HTMLTag:       "htm",
-	HTMLAttrName:  "atn",
-	HTMLAttrValue: "atv",
-	Decimal:       "m",
-}
-
 func codeHandler(w http.ResponseWriter, req *http.Request) {
 	importPath := req.URL.Path[1:]
 	rev := req.URL.Query().Get("rev")
@@ -133,25 +118,9 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	<head>
 		<title>%s - Go Code</title>`, html.EscapeString(importPath))
 	io.WriteString(w, `
-		<link href="https://dl.dropboxusercontent.com/u/8554242/temp/github-flavored-markdown.css" media="all" rel="stylesheet" type="text/css" />
+		<link href="/assets/style.css" rel="stylesheet" type="text/css" />
 		<link href="/command-r.css" media="all" rel="stylesheet" type="text/css" />
 		<link href="/table-of-contents.css" media="all" rel="stylesheet" type="text/css" />
-		<style>
-			.highlight h3 {
-				display: inline;
-				font-size: inherit;
-				margin-top: 0;
-				margin-bottom: 0;
-				font-weight: normal;
-			}
-			.highlight h3.highlighted {
-				background: rgb(243, 136, 73);
-			}
-			.highlight h3.highlighted-fade {
-				background: rgba(243, 136, 73, 0.0);
-				transition: background 0.5s ease-in-out;
-			}
-		</style>
 <script>
   (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
   (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
@@ -171,7 +140,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 				<span style="padding: 15px; display: inline-block;"><strong>Cmd+R</strong>: Go To Symbol...</span>
 			</div>
 			<div style="padding-bottom: 50px;">
-				<article class="markdown-body entry-content" style="padding: 30px;">`)
+				<div style="padding: 30px;">`)
 
 	fmt.Fprintf(w, "<h1>%s</h1>", html.EscapeString(importPath))
 
@@ -194,7 +163,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 			panic(err)
 		}
 
-		anns, err := syntaxhighlight.Annotate(src, syntaxhighlight.HTMLAnnotator(gfmHtmlConfig))
+		anns, err := syntaxhighlight.Annotate(src, syntaxhighlight.HTMLAnnotator(syntaxhighlight.DefaultHTMLConfig))
 
 		for _, decl := range fileAst.Decls {
 			switch d := decl.(type) {
@@ -257,7 +226,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		io.WriteString(w, `</pre></div>`)
 	}
 
-	io.WriteString(w, `</article>
+	io.WriteString(w, `</div>
 			</div>
 			<div style="position: absolute; bottom: 0; left: 0; width: 100%; text-align: right; background-color: hsl(209, 51%, 92%);">
 				<span style="margin-right: 15px; padding: 15px; display: inline-block;"><a href="https://github.com/shurcooL/gtdo/issues" target="_blank">Report an issue</a></span>

@@ -1,0 +1,63 @@
+body {
+	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-size: 12px;
+	line-height: 1.428571429;
+	margin: 0px;
+}
+a {
+	color: #4183c4;
+	text-decoration: none;
+}
+a:hover {
+	text-decoration: underline;
+}
+
+article {
+	font-size: 16px;
+	line-height: 1.6;
+}
+article > *:first-child {
+	margin-top: 0;
+}
+
+* {
+	tab-size: 4;
+}
+code {
+	font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+	font-size: 85%;
+}
+
+.highlight h3 {
+	display: inline;
+	font-size: inherit;
+	margin-top: 0;
+	margin-bottom: 0;
+	font-weight: normal;
+}
+.highlight h3.highlighted {
+	background: rgb(243, 136, 73);
+}
+.highlight h3.highlighted-fade {
+	background: rgba(243, 136, 73, 0.0);
+	transition: background 0.5s ease-in-out;
+}
+
+.highlight pre {
+	font-family: Menlo, monospace;
+	padding: 2px; border: 1px solid #ddd
+}
+
+@media screen {
+	.pln { color: #000 }  /* plain text */
+
+	.kwd, .pun { color: rgb(0.4%, 0%, 71.4%); font-weight: bold; }  /* a keyword */
+	.com { color: rgb(0%, 50.6%, 9.4%) }  /* a comment */
+	.typ { color: #000 }  /* a type name */
+	.dec, .lit, .str { color: rgb(80.4%, 0%, 0%) }  /* a declaration; a literal value; string content */
+	/* punctuation, lisp open bracket, lisp close bracket */
+	.opn, .clo { color: #660 }
+	.tag { color: #008 }  /* a markup tag name */
+	.var { color: #000 }  /* a variable name */
+	.fun { color: red }  /* a function name */
+}
