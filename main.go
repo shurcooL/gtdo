@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"html"
@@ -27,6 +28,7 @@ import (
 	"code.google.com/p/go.tools/godoc/vfs"
 	"github.com/shurcooL/go-goon"
 	"github.com/shurcooL/go/gists/gist5639599"
+	"github.com/shurcooL/go/gists/gist7480523"
 	"github.com/shurcooL/go/github_flavored_markdown/sanitized_anchor_name"
 	"github.com/shurcooL/go/gopherjs_http"
 	vcs2 "github.com/shurcooL/go/vcs"
@@ -35,6 +37,8 @@ import (
 	"github.com/sourcegraph/apiproxy"
 	"github.com/sourcegraph/apiproxy/service/github"
 	"github.com/sourcegraph/go-vcs/vcs"
+	_ "github.com/sourcegraph/go-vcs/vcs/gitcmd"
+	_ "github.com/sourcegraph/go-vcs/vcs/hgcmd"
 	"github.com/sourcegraph/httpcache"
 	"github.com/sourcegraph/syntaxhighlight"
 	"github.com/sourcegraph/vcsstore/vcsclient"
@@ -175,7 +179,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		fset := token.NewFileSet()
 		file, err := fs.Open(path.Join(bpkg.Dir, goFile))
 		if err != nil {
-			panic(err)
+			log.Panicln("fs.Open:", path.Join(bpkg.Dir, goFile), err)
 		}
 		src, err := ioutil.ReadAll(file)
 		if err != nil {
@@ -266,13 +270,62 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 `)
 }
 
+func tryLocal(req *http.Request) (*build.Package, vfs.FileSystem, error) {
+	importPath := req.URL.Path[1:]
+	rev := req.URL.Query().Get("rev")
+
+	goPackage := gist7480523.GoPackageFromImportPath(importPath)
+	if goPackage == nil {
+		return nil, nil, errors.New("no local go package")
+	}
+
+	rootPath := getRootPath(goPackage)
+	goon.DumpExpr(rootPath)
+	if rootPath == "" {
+		return nil, nil, errors.New("no local vcs root path")
+	}
+
+	repo, err := vcs.Open(goPackage.Dir.Repo.Vcs.Type().VcsType(), rootPath)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var commitId vcs.CommitID
+	if rev != "" {
+		commitId, err = repo.ResolveRevision(rev)
+	} else {
+		commitId, err = repo.ResolveBranch(goPackage.Dir.Repo.Vcs.GetDefaultBranch())
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+
+	fs, err := repo.FileSystem(commitId)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Verify it's an existing revision, etc.
+	_, err = fs.Stat(".")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// This adapter is needed to make fs.Open("/main.go") work, since the repo's vfs only allows fs.Open("main.go").
+	// See https://github.com/sourcegraph/go-vcs/issues/23.
+	fs = vfs_util.NewRootedFS(fs)
+
+	fs = vfs_util.NewPrefixFS(fs, rootPath)
+
+	return goPackage.Bpkg, fs, nil
+}
+
+// Try local first, if not, try remote, if not, clone/update remote and try one last time.
 func try(req *http.Request) (*build.Package, vfs.FileSystem, error) {
 	importPath := req.URL.Path[1:]
 
-	fs := vfs.OS("")
-
-	context := buildContextUsingFS(fs)
-	bpkg, err0 := context.Import(importPath, "", 0)
+	bpkg, fs, err0 := tryLocal(req)
+	fmt.Println("tryLocal err:", err0)
 	if err0 == nil {
 		return bpkg, fs, nil
 	}
@@ -289,7 +342,7 @@ func try(req *http.Request) (*build.Package, vfs.FileSystem, error) {
 
 	fs = vfs_util.NewPrefixFS(fs, "/virtual-go-workspace/src/"+repoImportPath)
 
-	context = buildContextUsingFS(fs)
+	context := buildContextUsingFS(fs)
 	context.GOPATH = "/virtual-go-workspace"
 	bpkg, err1 := context.Import(importPath, "", 0)
 	if err1 == nil {
@@ -412,6 +465,24 @@ func buildContextUsingFS(fs vfs.FileSystem) build.Context {
 	}
 
 	return context
+}
+
+// ---
+
+// TODO: Dedup.
+
+// getRootPath returns the root path of the given goPackage.
+func getRootPath(goPackage *gist7480523.GoPackage) (rootPath string) {
+	if goPackage.Standard {
+		return ""
+	}
+
+	goPackage.UpdateVcs()
+	if goPackage.Dir.Repo == nil {
+		return ""
+	} else {
+		return goPackage.Dir.Repo.Vcs.RootPath()
+	}
 }
 
 // ---
