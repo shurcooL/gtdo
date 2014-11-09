@@ -135,7 +135,8 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	<body>
 		<div style="position: relative; min-height: 100%;">
 			<div style="width: 100%; background-color: hsl(209, 51%, 92%);">
-				<span style="margin-left: 30px; padding: 15px; display: inline-block;"><strong>Go Tools</strong></span>
+				<span style="margin-left: 30px; padding: 15px; display: inline-block;"><strong><a class="black" href="/">Go Tools</a></strong></span>
+				<span style="padding: 15px; display: inline-block;"><a class="black" href="/">Home</a></span>
 				<span style="background-color: hsl(209, 51%, 88%); padding: 15px; display: inline-block;">Code</span>
 				<span style="padding: 15px; display: inline-block;"><strong>Cmd+R</strong>: Go To Symbol...</span>
 			</div>
