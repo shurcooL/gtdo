@@ -111,7 +111,9 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 
 	bpkg, fs, err := try(req)
 	if err != nil {
-		panic(err)
+		log.Println("try:", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	fmt.Fprintf(w, `<html>
@@ -361,7 +363,7 @@ func importPathToRepoGuess(importPath string) (repoImportPath string, cloneUrl *
 
 		return repoImportPath, cloneUrl, vcs2.NewFromType(vcs2.Hg), nil
 	default:
-		return "", nil, nil, err
+		return "", nil, nil, errors.New("importPathToRepoGuess: unsupported import path pattern, sorry... more will be supported soon, for now only \"github.com/...\" and \"code.google.com/p/...\" are. feel free to make a PR.")
 	}
 }
 
