@@ -279,11 +279,19 @@ func tryLocal(req *http.Request) (*build.Package, vfs.FileSystem, error) {
 		return nil, nil, errors.New("no local go package")
 	}
 
-	rootPath := getRootPath(goPackage)
-	goon.DumpExpr(rootPath)
-	if rootPath == "" {
+	if goPackage.Standard {
+		if rev != "" {
+			return nil, nil, errors.New("custom revision not yet supported for standard packages")
+		}
+
+		return goPackage.Bpkg, vfs.OS(""), nil
+	}
+
+	goPackage.UpdateVcs()
+	if goPackage.Dir.Repo == nil {
 		return nil, nil, errors.New("no local vcs root path")
 	}
+	rootPath := goPackage.Dir.Repo.Vcs.RootPath()
 
 	repo, err := vcs.Open(goPackage.Dir.Repo.Vcs.Type().VcsType(), rootPath)
 	if err != nil {
@@ -465,24 +473,6 @@ func buildContextUsingFS(fs vfs.FileSystem) build.Context {
 	}
 
 	return context
-}
-
-// ---
-
-// TODO: Dedup.
-
-// getRootPath returns the root path of the given goPackage.
-func getRootPath(goPackage *gist7480523.GoPackage) (rootPath string) {
-	if goPackage.Standard {
-		return ""
-	}
-
-	goPackage.UpdateVcs()
-	if goPackage.Dir.Repo == nil {
-		return ""
-	} else {
-		return goPackage.Dir.Repo.Vcs.RootPath()
-	}
 }
 
 // ---
