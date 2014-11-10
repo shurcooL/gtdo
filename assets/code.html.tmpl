@@ -1,0 +1,30 @@
+<html>
+	<head>
+		<title>{{.ImportPath}} - Go Code</title>
+		<link href="/assets/style.css" rel="stylesheet" type="text/css" />
+		<link href="/command-r.css" media="all" rel="stylesheet" type="text/css" />
+		<link href="/table-of-contents.css" media="all" rel="stylesheet" type="text/css" />
+		{{template "GA"}}
+	</head>
+	<body>
+		<div style="position: relative; min-height: 100%;">
+			<div style="width: 100%; background-color: hsl(209, 51%, 92%);">
+				<span style="margin-left: 30px; padding: 15px; display: inline-block;"><strong><a class="black" href="/">Go Tools</a></strong></span>
+				<span style="padding: 15px; display: inline-block;"><a class="black" href="/">Home</a></span>
+				<span style="background-color: hsl(209, 51%, 88%); padding: 15px; display: inline-block;">Code</span>
+				<span style="padding: 15px; display: inline-block;"><strong>Cmd+R</strong>: Go To Symbol...</span>
+			</div>
+			<div style="padding-bottom: 50px;">
+				<div style="padding: 30px;">
+					<h1>{{.ImportPath}}</h1>
+					{{.Files}}
+				</div>
+			</div>
+			<div style="position: absolute; bottom: 0; left: 0; width: 100%; text-align: right; background-color: hsl(209, 51%, 92%);">
+				<span style="margin-right: 15px; padding: 15px; display: inline-block;"><a href="https://github.com/shurcooL/gtdo/issues" target="_blank">Report an issue</a></span>
+			</div>
+		</div>
+		<script type="text/javascript" src="/command-r.go.js"></script>
+		<script type="text/javascript" src="/table-of-contents.go.js"></script>
+	</body>
+</html>

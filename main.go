@@ -48,8 +48,22 @@ var httpFlag = flag.String("http", ":8080", "Listen for HTTP connections on this
 
 var sg *vcsclient.Client
 
+var t *template.Template
+
+func loadTemplates() error {
+	var err error
+	t = template.New("").Funcs(template.FuncMap{})
+	t, err = t.ParseGlob("./assets/*.tmpl")
+	return err
+}
+
 func main() {
 	flag.Parse()
+
+	err := loadTemplates()
+	if err != nil {
+		log.Fatalln("loadTemplates:", err)
+	}
 
 	transport := &apiproxy.RevalidationTransport{
 		Transport: httpcache.NewMemoryCacheTransport(),
@@ -98,6 +112,13 @@ Disallow: /
 }
 
 func codeHandler(w http.ResponseWriter, req *http.Request) {
+	/*err := loadTemplates()
+	if err != nil {
+		log.Println("loadTemplates:", err)
+		http.Error(w, fmt.Sprintln("loadTemplates:", err), http.StatusInternalServerError)
+		return
+	}*/
+
 	importPath := req.URL.Path[1:]
 	rev := req.URL.Query().Get("rev")
 	_, _ = importPath, rev
@@ -105,7 +126,12 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	log.Printf("req: importPath=%q rev=%q.\n", importPath, rev)
 
 	if importPath == "" {
-		http.ServeFile(w, req, "./index.html")
+		err := t.ExecuteTemplate(w, "index.html.tmpl", nil)
+		if err != nil {
+			log.Printf("t.ExecuteTemplate: %v\n", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		return
 	}
 
@@ -116,36 +142,14 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(w, `<html>
-	<head>
-		<title>%s - Go Code</title>`, html.EscapeString(importPath))
-	io.WriteString(w, `
-		<link href="/assets/style.css" rel="stylesheet" type="text/css" />
-		<link href="/command-r.css" media="all" rel="stylesheet" type="text/css" />
-		<link href="/table-of-contents.css" media="all" rel="stylesheet" type="text/css" />
-<script>
-  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+	data := struct {
+		ImportPath string
+		Files      template.HTML
+	}{
+		ImportPath: importPath,
+	}
 
-  ga('create', 'UA-56541369-1', 'auto');
-  ga('send', 'pageview');
-
-</script>
-	</head>
-	<body>
-		<div style="position: relative; min-height: 100%;">
-			<div style="width: 100%; background-color: hsl(209, 51%, 92%);">
-				<span style="margin-left: 30px; padding: 15px; display: inline-block;"><strong><a class="black" href="/">Go Tools</a></strong></span>
-				<span style="padding: 15px; display: inline-block;"><a class="black" href="/">Home</a></span>
-				<span style="background-color: hsl(209, 51%, 88%); padding: 15px; display: inline-block;">Code</span>
-				<span style="padding: 15px; display: inline-block;"><strong>Cmd+R</strong>: Go To Symbol...</span>
-			</div>
-			<div style="padding-bottom: 50px;">
-				<div style="padding: 30px;">`)
-
-	fmt.Fprintf(w, "<h1>%s</h1>", html.EscapeString(importPath))
+	var buf bytes.Buffer
 
 	for _, goFile := range append(bpkg.GoFiles, bpkg.CgoFiles...) {
 		fset := token.NewFileSet()
@@ -177,7 +181,6 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 				if d.Recv != nil {
 					name = strings.TrimPrefix(gist5639599.SprintAstBare(d.Recv.List[0].Type), "*") + "." + name
 				}
-				//fmt.Fprintln(w, pos, d.Name.String(), gist5639599.SprintAstBare(funcDeclSignature))
 				ann := &annotate.Annotation{
 					Start: pos,
 					End:   pos + len(gist5639599.SprintAstBare(funcDeclSignature)),
@@ -210,12 +213,6 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 			}
 		}
 
-		/*var buf bytes.Buffer
-		err = (&printer.Config{Mode: printer.UseSpaces | printer.TabIndent, Tabwidth: 8}).Fprint(&buf, fset, fileAst)
-		if err != nil {
-			panic(err)
-		}*/
-
 		sort.Sort(anns)
 
 		b, err := annotate.Annotate(src, anns, func(w io.Writer, b []byte) { template.HTMLEscape(w, b) })
@@ -223,23 +220,20 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 			panic(err)
 		}
 
-		fmt.Fprintf(w, "<h2 id=\"%s\">%s</h2>", sanitized_anchor_name.Create(goFile), html.EscapeString(goFile))
-		io.WriteString(w, `<div class="highlight highlight-Go"><pre>`)
-		w.Write(b)
-		io.WriteString(w, `</pre></div>`)
+		fmt.Fprintf(&buf, "<h2 id=\"%s\">%s</h2>", sanitized_anchor_name.Create(goFile), html.EscapeString(goFile))
+		io.WriteString(&buf, `<div class="highlight highlight-Go"><pre>`)
+		buf.Write(b)
+		io.WriteString(&buf, `</pre></div>`)
 	}
 
-	io.WriteString(w, `</div>
-			</div>
-			<div style="position: absolute; bottom: 0; left: 0; width: 100%; text-align: right; background-color: hsl(209, 51%, 92%);">
-				<span style="margin-right: 15px; padding: 15px; display: inline-block;"><a href="https://github.com/shurcooL/gtdo/issues" target="_blank">Report an issue</a></span>
-			</div>
-		</div>
-		<script type="text/javascript" src="/command-r.go.js"></script>
-		<script type="text/javascript" src="/table-of-contents.go.js"></script>
-	</body>
-</html>
-`)
+	data.Files = template.HTML(buf.String())
+
+	err = t.ExecuteTemplate(w, "code.html.tmpl", &data)
+	if err != nil {
+		log.Printf("t.ExecuteTemplate: %v\n", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 func tryLocal(req *http.Request) (*build.Package, vfs.FileSystem, error) {
