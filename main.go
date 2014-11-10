@@ -25,7 +25,6 @@ import (
 	"go/parser"
 	"go/token"
 
-	"code.google.com/p/go.tools/godoc/vfs"
 	"github.com/shurcooL/go-goon"
 	"github.com/shurcooL/go/gists/gist5639599"
 	"github.com/shurcooL/go/gists/gist7480523"
@@ -42,6 +41,7 @@ import (
 	"github.com/sourcegraph/httpcache"
 	"github.com/sourcegraph/syntaxhighlight"
 	"github.com/sourcegraph/vcsstore/vcsclient"
+	"golang.org/x/tools/godoc/vfs"
 )
 
 var httpFlag = flag.String("http", ":8080", "Listen for HTTP connections on this address.")
