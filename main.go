@@ -135,7 +135,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	bpkg, fs, err := try(req)
+	bpkg, fs, err := try(importPath, rev)
 	if err != nil {
 		log.Println("try:", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -236,10 +236,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func tryLocal(req *http.Request) (*build.Package, vfs.FileSystem, error) {
-	importPath := req.URL.Path[1:]
-	rev := req.URL.Query().Get("rev")
-
+func tryLocal(importPath, rev string) (*build.Package, vfs.FileSystem, error) {
 	goPackage := gist7480523.GoPackageFromImportPath(importPath)
 	if goPackage == nil {
 		return nil, nil, errors.New("no local go package")
@@ -295,16 +292,15 @@ func tryLocal(req *http.Request) (*build.Package, vfs.FileSystem, error) {
 }
 
 // Try local first, if not, try remote, if not, clone/update remote and try one last time.
-func try(req *http.Request) (*build.Package, vfs.FileSystem, error) {
-	importPath := req.URL.Path[1:]
-
-	bpkg, fs, err0 := tryLocal(req)
+func try(importPath, rev string) (*build.Package, vfs.FileSystem, error) {
+	bpkg, fs, err0 := tryLocal(importPath, rev)
 	fmt.Println("tryLocal err:", err0)
 	if err0 == nil {
 		return bpkg, fs, nil
 	}
 
-	repo, repoImportPath, commitId, err := repoFromRequest(req)
+	// If local didn't work, try remote...
+	repo, repoImportPath, commitId, err := repoFromRequest(importPath, rev)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -361,10 +357,7 @@ func importPathToRepoGuess(importPath string) (repoImportPath string, cloneUrl *
 	}
 }
 
-func repoFromRequest(req *http.Request) (repo vcs.Repository, repoImportPath string, commitId vcs.CommitID, err error) {
-	importPath := req.URL.Path[1:]
-	rev := req.URL.Query().Get("rev")
-
+func repoFromRequest(importPath, rev string) (repo vcs.Repository, repoImportPath string, commitId vcs.CommitID, err error) {
 	repoImportPath, cloneUrl, vcsRepo, err := importPathToRepoGuess(importPath)
 	if err != nil {
 		return nil, "", "", err
