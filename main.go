@@ -123,6 +123,11 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	rev := req.URL.Query().Get("rev")
 	_, _ = importPath, rev
 
+	// HACK: Hacky support for golang.org/x/... vanity path, need to do this properly... Ideally, reuse `go get` code/logic.
+	if strings.HasPrefix(importPath, "golang.org/x/") {
+		importPath = strings.Replace(importPath, "golang.org/x/", "code.google.com/p/go.", 1)
+	}
+
 	log.Printf("req: importPath=%q rev=%q.\n", importPath, rev)
 
 	if importPath == "" {
@@ -353,7 +358,7 @@ func importPathToRepoGuess(importPath string) (repoImportPath string, cloneUrl *
 
 		return repoImportPath, cloneUrl, vcs2.NewFromType(vcs2.Hg), nil
 	default:
-		return "", nil, nil, errors.New("importPathToRepoGuess: unsupported import path pattern, sorry... more will be supported soon, for now only \"github.com/...\" and \"code.google.com/p/...\" are. feel free to make a PR.")
+		return "", nil, nil, errors.New("importPathToRepoGuess: unsupported import path pattern, sorry... more will be supported soon, for now only \"github.com/...\", \"golang.org/x/...\" and \"code.google.com/p/...\" are. feel free to make a PR.")
 	}
 }
 
