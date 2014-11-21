@@ -20,8 +20,6 @@ import (
 	"strings"
 	"time"
 
-	"azul3d.org/semver.v1"
-
 	"go/ast"
 	"go/build"
 	"go/parser"
@@ -43,6 +41,7 @@ import (
 	"github.com/sourcegraph/httpcache"
 	"github.com/sourcegraph/syntaxhighlight"
 	"github.com/sourcegraph/vcsstore/vcsclient"
+	go_vcs "golang.org/x/tools/go/vcs"
 	"golang.org/x/tools/godoc/vfs"
 )
 
@@ -124,11 +123,6 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	importPath := req.URL.Path[1:]
 	rev := req.URL.Query().Get("rev")
 	_, _ = importPath, rev
-
-	// HACK: Hacky support for golang.org/x/... vanity path, need to do this properly... Ideally, reuse `go get` code/logic.
-	if strings.HasPrefix(importPath, "golang.org/x/") {
-		importPath = strings.Replace(importPath, "golang.org/x/", "code.google.com/p/go.", 1)
-	}
 
 	log.Printf("req: importPath=%q rev=%q.\n", importPath, rev)
 
@@ -257,6 +251,9 @@ func tryLocal(importPath, rev string) (*build.Package, vfs.FileSystem, error) {
 		return goPackage.Bpkg, vfs.OS(""), nil
 	}
 
+	// TESTING: Disable local for non-standard library packages.
+	return nil, nil, errors.New("TESTING: local for non-standard library packages is disabled")
+
 	goPackage.UpdateVcs()
 	if goPackage.Dir.Repo == nil {
 		return nil, nil, errors.New("no local vcs root path")
@@ -307,7 +304,7 @@ func try(importPath, rev string) (*build.Package, vfs.FileSystem, error) {
 	}
 
 	// If local didn't work, try remote...
-	repo, repoImportPath, subPath, commitId, err := repoFromRequest(importPath, rev)
+	repo, repoImportPath, _ /*subPath*/, commitId, err := repoFromRequest(importPath, rev)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -323,8 +320,8 @@ func try(importPath, rev string) (*build.Package, vfs.FileSystem, error) {
 	context.GOPATH = "/virtual-go-workspace"
 	var err1 error
 	switch {
-	case strings.HasPrefix(importPath, "azul3d.org/"):
-		bpkg, err1 = context.ImportDir(path.Join(context.GOPATH, "src", repoImportPath, subPath), 0)
+	//case strings.HasPrefix(importPath, "azul3d.org/"):
+	//	bpkg, err1 = context.ImportDir(path.Join(context.GOPATH, "src", repoImportPath, subPath), 0)
 	default:
 		bpkg, err1 = context.Import(importPath, "", 0)
 	}
@@ -336,7 +333,30 @@ func try(importPath, rev string) (*build.Package, vfs.FileSystem, error) {
 }
 
 func importPathToRepoGuess(importPath string) (repoImportPath, subPath, defaultRev string, cloneUrl *url.URL, vcsRepo vcs2.Vcs, err error) {
-	switch {
+	rr, err := go_vcs.RepoRootForImportPath(importPath, true)
+	if err != nil {
+		return "", "", "", nil, nil, err
+	}
+
+	repoImportPath = rr.Root
+
+	cloneUrl, err = url.Parse(rr.Repo)
+	if err != nil {
+		return "", "", "", nil, nil, err
+	}
+
+	switch rr.VCS.Cmd {
+	case "git":
+		vcsRepo = vcs2.NewFromType(vcs2.Git)
+	case "hg":
+		vcsRepo = vcs2.NewFromType(vcs2.Hg)
+	default:
+		return "", "", "", nil, nil, errors.New("unsupported rr.VCS.Cmd: " + rr.VCS.Cmd)
+	}
+
+	return
+
+	/*switch {
 	case strings.HasPrefix(importPath, "azul3d.org/"):
 		u, err := url.Parse("https://" + importPath)
 		if err != nil {
@@ -384,7 +404,7 @@ func importPathToRepoGuess(importPath string) (repoImportPath, subPath, defaultR
 		return repoImportPath, subPath, defaultRev, cloneUrl, vcs2.NewFromType(vcs2.Hg), nil
 	default:
 		return "", "", "", nil, nil, errors.New("importPathToRepoGuess: unsupported import path pattern, sorry... more will be supported soon, for now only \"github.com/...\", \"golang.org/x/...\" and \"code.google.com/p/...\" are. feel free to make a PR.")
-	}
+	}*/
 }
 
 func repoFromRequest(importPath, rev string) (repo vcs.Repository, repoImportPath, subPath string, commitId vcs.CommitID, err error) {
