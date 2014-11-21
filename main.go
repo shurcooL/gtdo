@@ -304,7 +304,7 @@ func try(importPath, rev string) (*build.Package, vfs.FileSystem, error) {
 	}
 
 	// If local didn't work, try remote...
-	repo, repoImportPath, _ /*subPath*/, commitId, err := repoFromRequest(importPath, rev)
+	repo, repoImportPath, commitId, err := repoFromRequest(importPath, rev)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -318,13 +318,7 @@ func try(importPath, rev string) (*build.Package, vfs.FileSystem, error) {
 
 	context := buildContextUsingFS(fs)
 	context.GOPATH = "/virtual-go-workspace"
-	var err1 error
-	switch {
-	//case strings.HasPrefix(importPath, "azul3d.org/"):
-	//	bpkg, err1 = context.ImportDir(path.Join(context.GOPATH, "src", repoImportPath, subPath), 0)
-	default:
-		bpkg, err1 = context.Import(importPath, "", 0)
-	}
+	bpkg, err1 := context.Import(importPath, "", 0)
 	if err1 == nil {
 		return bpkg, fs, nil
 	}
@@ -332,17 +326,17 @@ func try(importPath, rev string) (*build.Package, vfs.FileSystem, error) {
 	return nil, nil, MultiError{err0, err1}
 }
 
-func importPathToRepoGuess(importPath string) (repoImportPath, subPath, defaultRev string, cloneUrl *url.URL, vcsRepo vcs2.Vcs, err error) {
+func importPathToRepoGuess(importPath string) (repoImportPath string, cloneUrl *url.URL, vcsRepo vcs2.Vcs, err error) {
 	rr, err := go_vcs.RepoRootForImportPath(importPath, true)
 	if err != nil {
-		return "", "", "", nil, nil, err
+		return "", nil, nil, err
 	}
 
 	repoImportPath = rr.Root
 
 	cloneUrl, err = url.Parse(rr.Repo)
 	if err != nil {
-		return "", "", "", nil, nil, err
+		return "", nil, nil, err
 	}
 
 	switch rr.VCS.Cmd {
@@ -351,92 +345,28 @@ func importPathToRepoGuess(importPath string) (repoImportPath, subPath, defaultR
 	case "hg":
 		vcsRepo = vcs2.NewFromType(vcs2.Hg)
 	default:
-		return "", "", "", nil, nil, errors.New("unsupported rr.VCS.Cmd: " + rr.VCS.Cmd)
+		return "", nil, nil, errors.New("unsupported rr.VCS.Cmd: " + rr.VCS.Cmd)
 	}
 
-	return
-
-	/*switch {
-	case strings.HasPrefix(importPath, "azul3d.org/"):
-		u, err := url.Parse("https://" + importPath)
-		if err != nil {
-			return "", "", "", nil, nil, err
-		}
-
-		repo, err := semver.GitHub("azul3d").Match(u)
-		if err != nil {
-			return "", "", "", nil, nil, err
-		}
-		repo.URL.Path = strings.TrimSuffix(repo.URL.Path, ".git")
-
-		repoImportPath = path.Join(repo.URL.Host, repo.URL.Path)
-		subPath = repo.SubPath
-		defaultRev = repo.Version.String()
-
-		return repoImportPath, subPath, defaultRev, repo.URL, vcs2.NewFromType(vcs2.Git), nil
-	case strings.HasPrefix(importPath, "github.com/"):
-		importPathElements := strings.Split(importPath, "/")
-		if len(importPathElements) < 3 {
-			return "", "", "", nil, nil, err
-		}
-
-		repoImportPath = path.Join(importPathElements[:3]...)
-
-		cloneUrl, err = url.Parse("https://" + repoImportPath)
-		if err != nil {
-			return "", "", "", nil, nil, err
-		}
-
-		return repoImportPath, subPath, defaultRev, cloneUrl, vcs2.NewFromType(vcs2.Git), nil
-	case strings.HasPrefix(importPath, "code.google.com/p/"):
-		importPathElements := strings.Split(importPath, "/")
-		if len(importPathElements) < 3 {
-			return "", "", "", nil, nil, err
-		}
-
-		repoImportPath = path.Join(importPathElements[:3]...)
-
-		cloneUrl, err = url.Parse("https://" + repoImportPath)
-		if err != nil {
-			return "", "", "", nil, nil, err
-		}
-
-		return repoImportPath, subPath, defaultRev, cloneUrl, vcs2.NewFromType(vcs2.Hg), nil
-	default:
-		return "", "", "", nil, nil, errors.New("importPathToRepoGuess: unsupported import path pattern, sorry... more will be supported soon, for now only \"github.com/...\", \"golang.org/x/...\" and \"code.google.com/p/...\" are. feel free to make a PR.")
-	}*/
+	return repoImportPath, cloneUrl, vcsRepo, nil
 }
 
-func repoFromRequest(importPath, rev string) (repo vcs.Repository, repoImportPath, subPath string, commitId vcs.CommitID, err error) {
-	repoImportPath, subPath, defaultRev, cloneUrl, vcsRepo, err := importPathToRepoGuess(importPath)
+func repoFromRequest(importPath, rev string) (repo vcs.Repository, repoImportPath string, commitId vcs.CommitID, err error) {
+	repoImportPath, cloneUrl, vcsRepo, err := importPathToRepoGuess(importPath)
 	if err != nil {
-		return nil, "", "", "", err
+		return nil, "", "", err
 	}
 
-	goon.DumpExpr(repoImportPath, subPath, defaultRev, cloneUrl, vcsRepo, err)
+	goon.DumpExpr(repoImportPath, cloneUrl, vcsRepo, err)
 
 TryGitInstead:
 	repo, err = sg.Repository(vcsRepo.Type().VcsType(), cloneUrl)
 	if err != nil {
-		return nil, "", "", "", err
+		return nil, "", "", err
 	}
 
 	if rev != "" {
 		commitId, err = repo.ResolveRevision(rev)
-	} else if defaultRev != "" {
-		// TODO: Also try branch, since either branch/tag are allowed...
-		commitId, err = repo.ResolveTag(defaultRev)
-
-		if err == nil {
-			commit, err := repo.GetCommit(commitId)
-			if err == nil {
-				goon.DumpExpr(commit)
-			} else {
-				fmt.Println("wtf inner", err)
-			}
-		} else {
-			fmt.Println("wtf", err)
-		}
 	} else {
 		commitId, err = repo.ResolveBranch(vcsRepo.GetDefaultBranch())
 	}
@@ -448,26 +378,23 @@ TryGitInstead:
 		err1 := repo.(vcsclient.RepositoryCloneUpdater).CloneOrUpdate(vcs.RemoteOpts{})
 		fmt.Println("repoFromRequest: CloneOrUpdate:", err1)
 		if err1 != nil {
-			return nil, "", "", "", MultiError{err, err1}
+			return nil, "", "", MultiError{err, err1}
 		}
 
 		if rev != "" {
 			commitId, err1 = repo.ResolveRevision(rev)
-		} else if defaultRev != "" {
-			// TODO: Also try branch, since either branch/tag are allowed...
-			commitId, err = repo.ResolveTag(defaultRev)
 		} else {
 			commitId, err1 = repo.ResolveBranch(vcsRepo.GetDefaultBranch())
 		}
 		if err1 != nil {
-			return nil, "", "", "", MultiError{err, err1}
+			return nil, "", "", MultiError{err, err1}
 		}
 		fmt.Println("repoFromRequest: worked on SECOND try")
 	} else {
 		fmt.Println("repoFromRequest: worked on first try")
 	}
 
-	return repo, repoImportPath, subPath, commitId, nil
+	return repo, repoImportPath, commitId, nil
 }
 
 func buildContextUsingFS(fs vfs.FileSystem) build.Context {
