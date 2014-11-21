@@ -359,7 +359,6 @@ func repoFromRequest(importPath, rev string) (repo vcs.Repository, repoImportPat
 
 	goon.DumpExpr(repoImportPath, cloneUrl, vcsRepo, err)
 
-TryGitInstead:
 	repo, err = sg.Repository(vcsRepo.Type().VcsType(), cloneUrl)
 	if err != nil {
 		return nil, "", "", err
@@ -369,10 +368,6 @@ TryGitInstead:
 		commitId, err = repo.ResolveRevision(rev)
 	} else {
 		commitId, err = repo.ResolveBranch(vcsRepo.GetDefaultBranch())
-	}
-	if err != nil && vcsRepo.Type() == vcs2.Hg && strings.HasPrefix(importPath, "code.google.com/p/") {
-		vcsRepo = vcs2.NewFromType(vcs2.Git)
-		goto TryGitInstead
 	}
 	if err != nil {
 		err1 := repo.(vcsclient.RepositoryCloneUpdater).CloneOrUpdate(vcs.RemoteOpts{})
