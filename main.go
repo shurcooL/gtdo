@@ -46,6 +46,7 @@ import (
 )
 
 var httpFlag = flag.String("http", ":8080", "Listen for HTTP connections on this address.")
+var vcsstoreHostFlag = flag.String("vcsstore-host", "localhost:9090", "Host of backing vcsstore.")
 
 var sg *vcsclient.Client
 
@@ -77,7 +78,7 @@ func main() {
 	}
 	cacheClient := &http.Client{Transport: transport}
 
-	sg = vcsclient.New(&url.URL{Scheme: "http", Host: "localhost:26203"}, cacheClient)
+	sg = vcsclient.New(&url.URL{Scheme: "http", Host: *vcsstoreHostFlag}, cacheClient)
 	sg.UserAgent = "gotools.org backend " + sg.UserAgent
 
 	http.HandleFunc("/", codeHandler)
