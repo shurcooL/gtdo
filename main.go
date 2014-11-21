@@ -41,10 +41,12 @@ import (
 	"github.com/sourcegraph/httpcache"
 	"github.com/sourcegraph/syntaxhighlight"
 	"github.com/sourcegraph/vcsstore/vcsclient"
+	go_vcs "golang.org/x/tools/go/vcs"
 	"golang.org/x/tools/godoc/vfs"
 )
 
 var httpFlag = flag.String("http", ":8080", "Listen for HTTP connections on this address.")
+var vcsstoreHostFlag = flag.String("vcsstore-host", "localhost:9090", "Host of backing vcsstore.")
 
 var sg *vcsclient.Client
 
@@ -76,7 +78,7 @@ func main() {
 	}
 	cacheClient := &http.Client{Transport: transport}
 
-	sg = vcsclient.New(&url.URL{Scheme: "http", Host: "localhost:26203"}, cacheClient)
+	sg = vcsclient.New(&url.URL{Scheme: "http", Host: *vcsstoreHostFlag}, cacheClient)
 	sg.UserAgent = "gotools.org backend " + sg.UserAgent
 
 	http.HandleFunc("/", codeHandler)
@@ -122,11 +124,6 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	importPath := req.URL.Path[1:]
 	rev := req.URL.Query().Get("rev")
 	_, _ = importPath, rev
-
-	// HACK: Hacky support for golang.org/x/... vanity path, need to do this properly... Ideally, reuse `go get` code/logic.
-	if strings.HasPrefix(importPath, "golang.org/x/") {
-		importPath = strings.Replace(importPath, "golang.org/x/", "code.google.com/p/go.", 1)
-	}
 
 	log.Printf("req: importPath=%q rev=%q.\n", importPath, rev)
 
@@ -255,6 +252,9 @@ func tryLocal(importPath, rev string) (*build.Package, vfs.FileSystem, error) {
 		return goPackage.Bpkg, vfs.OS(""), nil
 	}
 
+	// TESTING: Disable local for non-standard library packages.
+	return nil, nil, errors.New("TESTING: local for non-standard library packages is disabled")
+
 	goPackage.UpdateVcs()
 	if goPackage.Dir.Repo == nil {
 		return nil, nil, errors.New("no local vcs root path")
@@ -328,38 +328,28 @@ func try(importPath, rev string) (*build.Package, vfs.FileSystem, error) {
 }
 
 func importPathToRepoGuess(importPath string) (repoImportPath string, cloneUrl *url.URL, vcsRepo vcs2.Vcs, err error) {
-	switch {
-	case strings.HasPrefix(importPath, "github.com/"):
-		importPathElements := strings.Split(importPath, "/")
-		if len(importPathElements) < 3 {
-			return "", nil, nil, err
-		}
-
-		repoImportPath = path.Join(importPathElements[:3]...)
-
-		cloneUrl, err = url.Parse("https://" + repoImportPath)
-		if err != nil {
-			return "", nil, nil, err
-		}
-
-		return repoImportPath, cloneUrl, vcs2.NewFromType(vcs2.Git), nil
-	case strings.HasPrefix(importPath, "code.google.com/p/"):
-		importPathElements := strings.Split(importPath, "/")
-		if len(importPathElements) < 3 {
-			return "", nil, nil, err
-		}
-
-		repoImportPath = path.Join(importPathElements[:3]...)
-
-		cloneUrl, err = url.Parse("https://" + repoImportPath)
-		if err != nil {
-			return "", nil, nil, err
-		}
-
-		return repoImportPath, cloneUrl, vcs2.NewFromType(vcs2.Hg), nil
-	default:
-		return "", nil, nil, errors.New("importPathToRepoGuess: unsupported import path pattern, sorry... more will be supported soon, for now only \"github.com/...\", \"golang.org/x/...\" and \"code.google.com/p/...\" are. feel free to make a PR.")
+	rr, err := go_vcs.RepoRootForImportPath(importPath, true)
+	if err != nil {
+		return "", nil, nil, err
 	}
+
+	repoImportPath = rr.Root
+
+	cloneUrl, err = url.Parse(rr.Repo)
+	if err != nil {
+		return "", nil, nil, err
+	}
+
+	switch rr.VCS.Cmd {
+	case "git":
+		vcsRepo = vcs2.NewFromType(vcs2.Git)
+	case "hg":
+		vcsRepo = vcs2.NewFromType(vcs2.Hg)
+	default:
+		return "", nil, nil, errors.New("unsupported rr.VCS.Cmd: " + rr.VCS.Cmd)
+	}
+
+	return repoImportPath, cloneUrl, vcsRepo, nil
 }
 
 func repoFromRequest(importPath, rev string) (repo vcs.Repository, repoImportPath string, commitId vcs.CommitID, err error) {
@@ -368,9 +358,8 @@ func repoFromRequest(importPath, rev string) (repo vcs.Repository, repoImportPat
 		return nil, "", "", err
 	}
 
-	goon.DumpExpr(cloneUrl, vcsRepo, err)
+	goon.DumpExpr(repoImportPath, cloneUrl, vcsRepo, err)
 
-TryGitInstead:
 	repo, err = sg.Repository(vcsRepo.Type().VcsType(), cloneUrl)
 	if err != nil {
 		return nil, "", "", err
@@ -380,10 +369,6 @@ TryGitInstead:
 		commitId, err = repo.ResolveRevision(rev)
 	} else {
 		commitId, err = repo.ResolveBranch(vcsRepo.GetDefaultBranch())
-	}
-	if err != nil && vcsRepo.Type() == vcs2.Hg && strings.HasPrefix(importPath, "code.google.com/p/") {
-		vcsRepo = vcs2.NewFromType(vcs2.Git)
-		goto TryGitInstead
 	}
 	if err != nil {
 		err1 := repo.(vcsclient.RepositoryCloneUpdater).CloneOrUpdate(vcs.RemoteOpts{})
@@ -425,7 +410,11 @@ func buildContextUsingFS(fs vfs.FileSystem) build.Context {
 	}
 	context.HasSubdir = func(root, dir string) (rel string, ok bool) {
 		fmt.Printf("context.HasSubdir %q %q\n", root, dir)
-		return "", false
+		if context.IsDir(path.Join(root, dir)) {
+			return dir, true
+		} else {
+			return "", false
+		}
 	}
 	context.ReadDir = func(dir string) (fi []os.FileInfo, err error) {
 		fmt.Printf("context.ReadDir %q\n", dir)
