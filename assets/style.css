@@ -58,7 +58,7 @@ code {
 @media screen {
 	.pln { color: #000 }  /* plain text */
 
-	.kwd, .pun { color: rgb(0.4%, 0%, 71.4%); font-weight: bold; }  /* a keyword */
+	.kwd/*, .pun*/ { color: rgb(0.4%, 0%, 71.4%); font-weight: bold; }  /* a keyword */
 	.com { color: rgb(0%, 50.6%, 9.4%) }  /* a comment */
 	.typ { color: #000 }  /* a type name */
 	.dec, .lit, .str { color: rgb(80.4%, 0%, 0%) }  /* a declaration; a literal value; string content */
