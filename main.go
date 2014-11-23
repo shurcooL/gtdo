@@ -30,6 +30,7 @@ import (
 	"github.com/shurcooL/go/gists/gist7480523"
 	"github.com/shurcooL/go/github_flavored_markdown/sanitized_anchor_name"
 	"github.com/shurcooL/go/gopherjs_http"
+	"github.com/shurcooL/go/highlight_go"
 	vcs2 "github.com/shurcooL/go/vcs"
 	"github.com/shurcooL/go/vfs_util"
 	"github.com/sourcegraph/annotate"
@@ -172,7 +173,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 			panic(err)
 		}
 
-		anns, err := syntaxhighlight.Annotate(src, syntaxhighlight.HTMLAnnotator(syntaxhighlight.DefaultHTMLConfig))
+		anns, err := highlight_go.Annotate(src, syntaxhighlight.HTMLAnnotator(syntaxhighlight.DefaultHTMLConfig))
 
 		for _, decl := range fileAst.Decls {
 			switch d := decl.(type) {
