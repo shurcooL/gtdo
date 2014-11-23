@@ -52,19 +52,13 @@ code {
 .highlight pre {
 	font-family: Menlo, monospace;
 	padding: 10px;
-	background-color: #e9e9e9;
+	background-color: #f2f2f2;
 }
 
 @media screen {
-	.pln { color: #000 }  /* plain text */
-
-	.kwd/*, .pun*/ { color: rgb(0.4%, 0%, 71.4%); font-weight: bold; }  /* a keyword */
-	.com { color: rgb(0%, 50.6%, 9.4%) }  /* a comment */
-	.typ { color: #000 }  /* a type name */
-	.dec, .lit, .str { color: rgb(80.4%, 0%, 0%) }  /* a declaration; a literal value; string content */
-	/* punctuation, lisp open bracket, lisp close bracket */
-	.opn, .clo { color: #660 }
-	.tag { color: #008 }  /* a markup tag name */
-	.var { color: #000 }  /* a variable name */
-	.fun { color: red }  /* a function name */
+	.kwd { color: rgb(0.4%, 0%, 69.4%); font-weight: bold; }
+	.dec, .str { color: rgb(80.4%, 0%, 0%) }
+	.lit { color: rgb(0.8%, 2.4%, 100%) }
+	.com { color: rgb(0%, 50.6%, 9.4%) }
+	.pln { color: #000 }
 }
