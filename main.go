@@ -25,7 +25,6 @@ import (
 	"go/parser"
 	"go/token"
 
-	"github.com/shurcooL/go-goon"
 	"github.com/shurcooL/go/gists/gist5639599"
 	"github.com/shurcooL/go/gists/gist7480523"
 	"github.com/shurcooL/go/github_flavored_markdown/sanitized_anchor_name"
@@ -138,7 +137,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	bpkg, fs, err := try(importPath, rev)
+	bpkg, repoImportPath, fs, err := try(importPath, rev)
 	if err != nil {
 		log.Println("try:", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -146,90 +145,131 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	data := struct {
-		ImportPath string
-		Files      template.HTML
+		ImportPath         string
+		ImportPathElements [][2]string // Element name, and full path to element.
+		Bpkg               *build.Package
+		Folders            []string
+		Files              template.HTML
 	}{
 		ImportPath: importPath,
+		Bpkg:       bpkg,
 	}
 
-	var buf bytes.Buffer
-
-	for _, goFile := range append(bpkg.GoFiles, bpkg.CgoFiles...) {
-		fset := token.NewFileSet()
-		file, err := fs.Open(path.Join(bpkg.Dir, goFile))
+	// For now, don't try to find the subfolders for standard Go packages.
+	if bpkg != nil && bpkg.Goroot {
+		data.ImportPathElements = [][2]string{[2]string{importPath, ""}}
+	} else {
+		fis, err := fs.ReadDir("/virtual-go-workspace/src/" + importPath)
 		if err != nil {
-			log.Panicln("fs.Open:", path.Join(bpkg.Dir, goFile), err)
-		}
-		src, err := ioutil.ReadAll(file)
-		if err != nil {
-			panic(err)
-		}
-		err = file.Close()
-		if err != nil {
-			panic(err)
-		}
-		fileAst, err := parser.ParseFile(fset, filepath.Join(bpkg.Dir, goFile), src, parser.ParseComments)
-		if err != nil {
-			panic(err)
+			log.Println("fs.ReadDir(importPath):", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 
-		anns, err := highlight_go.Annotate(src, syntaxhighlight.HTMLAnnotator(syntaxhighlight.DefaultHTMLConfig))
+		for _, fi := range fis {
+			if !fi.IsDir() {
+				continue
+			}
+			data.Folders = append(data.Folders, fi.Name())
+		}
 
-		for _, decl := range fileAst.Decls {
-			switch d := decl.(type) {
-			case *ast.FuncDecl:
-				pos := fset.File(d.Pos()).Offset(d.Pos())
-				funcDeclSignature := &ast.FuncDecl{Recv: d.Recv, Name: d.Name, Type: d.Type}
-				name := d.Name.String()
-				if d.Recv != nil {
-					name = strings.TrimPrefix(gist5639599.SprintAstBare(d.Recv.List[0].Type), "*") + "." + name
-				}
-				ann := &annotate.Annotation{
-					Start: pos,
-					End:   pos + len(gist5639599.SprintAstBare(funcDeclSignature)),
+		{
+			elements := strings.Split(importPath, "/")
+			elements = elements[len(strings.Split(repoImportPath, "/")):]
 
-					Left:  []byte(fmt.Sprintf(`<h3 id="%s">`, name)),
-					Right: []byte(`</h3>`),
-				}
-				anns = append(anns, ann)
-			case *ast.GenDecl:
-				if d.Tok != token.IMPORT {
-					continue
-				}
-				for _, imp := range d.Specs {
-					path := imp.(*ast.ImportSpec).Path
-					pos := fset.File(path.Pos()).Offset(path.Pos())
-					end := fset.File(path.End()).Offset(path.End())
-					pathValue, err := strconv.Unquote(path.Value)
-					if err != nil {
-						continue
+			data.ImportPathElements = [][2]string{
+				[2]string{repoImportPath, repoImportPath},
+			}
+			for i, e := range elements {
+				data.ImportPathElements = append(data.ImportPathElements,
+					[2]string{e, repoImportPath + "/" + path.Join(elements[:i+1]...)},
+				)
+			}
+			// Don't link the last element, since it's the current page.
+			data.ImportPathElements[len(data.ImportPathElements)-1][1] = ""
+		}
+	}
+
+	if bpkg != nil {
+		var buf bytes.Buffer
+
+		for _, goFile := range append(bpkg.GoFiles, bpkg.CgoFiles...) {
+			fset := token.NewFileSet()
+			file, err := fs.Open(path.Join(bpkg.Dir, goFile))
+			if err != nil {
+				log.Panicln("fs.Open:", path.Join(bpkg.Dir, goFile), err)
+			}
+			src, err := ioutil.ReadAll(file)
+			if err != nil {
+				panic(err)
+			}
+			err = file.Close()
+			if err != nil {
+				panic(err)
+			}
+			fileAst, err := parser.ParseFile(fset, filepath.Join(bpkg.Dir, goFile), src, parser.ParseComments)
+			if err != nil {
+				panic(err)
+			}
+
+			anns, err := highlight_go.Annotate(src, syntaxhighlight.HTMLAnnotator(syntaxhighlight.DefaultHTMLConfig))
+
+			for _, decl := range fileAst.Decls {
+				switch d := decl.(type) {
+				case *ast.FuncDecl:
+					pos := fset.File(d.Pos()).Offset(d.Pos())
+					funcDeclSignature := &ast.FuncDecl{Recv: d.Recv, Name: d.Name, Type: d.Type}
+					name := d.Name.String()
+					if d.Recv != nil {
+						name = strings.TrimPrefix(gist5639599.SprintAstBare(d.Recv.List[0].Type), "*") + "." + name
 					}
 					ann := &annotate.Annotation{
-						Start: pos + 1, // Don't include quote characters.
-						End:   end - 1,
+						Start: pos,
+						End:   pos + len(gist5639599.SprintAstBare(funcDeclSignature)),
 
-						Left:  []byte(fmt.Sprintf(`<a href="%s" target="_blank">`, "/"+pathValue)),
-						Right: []byte(`</a>`),
+						Left:  []byte(fmt.Sprintf(`<h3 id="%s">`, name)),
+						Right: []byte(`</h3>`),
 					}
 					anns = append(anns, ann)
+				case *ast.GenDecl:
+					if d.Tok != token.IMPORT {
+						continue
+					}
+					for _, imp := range d.Specs {
+						path := imp.(*ast.ImportSpec).Path
+						pos := fset.File(path.Pos()).Offset(path.Pos())
+						end := fset.File(path.End()).Offset(path.End())
+						pathValue, err := strconv.Unquote(path.Value)
+						if err != nil {
+							continue
+						}
+						ann := &annotate.Annotation{
+							Start: pos + 1, // Don't include quote characters.
+							End:   end - 1,
+
+							Left:  []byte(fmt.Sprintf(`<a href="%s" target="_blank">`, "/"+pathValue)),
+							Right: []byte(`</a>`),
+						}
+						anns = append(anns, ann)
+					}
 				}
 			}
+
+			sort.Sort(anns)
+
+			b, err := annotate.Annotate(src, anns, func(w io.Writer, b []byte) { template.HTMLEscape(w, b) })
+			if err != nil {
+				panic(err)
+			}
+
+			fmt.Fprintf(&buf, "<h2 id=\"%s\">%s</h2>", sanitized_anchor_name.Create(goFile), html.EscapeString(goFile))
+			io.WriteString(&buf, `<div class="highlight highlight-Go"><pre>`)
+			buf.Write(b)
+			io.WriteString(&buf, `</pre></div>`)
 		}
 
-		sort.Sort(anns)
-
-		b, err := annotate.Annotate(src, anns, func(w io.Writer, b []byte) { template.HTMLEscape(w, b) })
-		if err != nil {
-			panic(err)
-		}
-
-		fmt.Fprintf(&buf, "<h2 id=\"%s\">%s</h2>", sanitized_anchor_name.Create(goFile), html.EscapeString(goFile))
-		io.WriteString(&buf, `<div class="highlight highlight-Go"><pre>`)
-		buf.Write(b)
-		io.WriteString(&buf, `</pre></div>`)
+		data.Files = template.HTML(buf.String())
 	}
-
-	data.Files = template.HTML(buf.String())
 
 	err = t.ExecuteTemplate(w, "code.html.tmpl", &data)
 	if err != nil {
@@ -298,22 +338,22 @@ func tryLocal(importPath, rev string) (*build.Package, vfs.FileSystem, error) {
 }
 
 // Try local first, if not, try remote, if not, clone/update remote and try one last time.
-func try(importPath, rev string) (*build.Package, vfs.FileSystem, error) {
+func try(importPath, rev string) (*build.Package, string, vfs.FileSystem, error) {
 	bpkg, fs, err0 := tryLocal(importPath, rev)
 	fmt.Println("tryLocal err:", err0)
 	if err0 == nil {
-		return bpkg, fs, nil
+		return bpkg, "???", fs, nil
 	}
 
 	// If local didn't work, try remote...
 	repo, repoImportPath, commitId, err := repoFromRequest(importPath, rev)
 	if err != nil {
-		return nil, nil, err
+		return nil, "", nil, err
 	}
 
 	fs, err = repo.FileSystem(commitId)
 	if err != nil {
-		return nil, nil, err
+		return nil, "", nil, err
 	}
 
 	fs = vfs_util.NewPrefixFS(fs, "/virtual-go-workspace/src/"+repoImportPath)
@@ -322,10 +362,10 @@ func try(importPath, rev string) (*build.Package, vfs.FileSystem, error) {
 	context.GOPATH = "/virtual-go-workspace"
 	bpkg, err1 := context.Import(importPath, "", 0)
 	if err1 == nil {
-		return bpkg, fs, nil
+		return bpkg, repoImportPath, fs, nil
 	}
 
-	return nil, nil, MultiError{err0, err1}
+	return nil, repoImportPath, fs, nil
 }
 
 func importPathToRepoGuess(importPath string) (repoImportPath string, cloneUrl *url.URL, vcsRepo vcs2.Vcs, err error) {
@@ -359,7 +399,7 @@ func repoFromRequest(importPath, rev string) (repo vcs.Repository, repoImportPat
 		return nil, "", "", err
 	}
 
-	goon.DumpExpr(repoImportPath, cloneUrl, vcsRepo, err)
+	//goon.DumpExpr(repoImportPath, cloneUrl, vcsRepo, err)
 
 	repo, err = sg.Repository(vcsRepo.Type().VcsType(), cloneUrl)
 	if err != nil {
