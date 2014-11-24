@@ -144,13 +144,6 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	fis, err := fs.ReadDir("/virtual-go-workspace/src/" + importPath)
-	if err != nil {
-		log.Println("fs.ReadDir(importPath):", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
 	data := struct {
 		ImportPath         string
 		ImportPathElements [][2]string // Element name, and full path to element.
@@ -162,27 +155,39 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		Bpkg:       bpkg,
 	}
 
-	for _, fi := range fis {
-		if !fi.IsDir() {
-			continue
+	// For now, don't try to find the subfolders for standard Go packages.
+	if bpkg != nil && bpkg.Goroot {
+		data.ImportPathElements = [][2]string{[2]string{importPath, ""}}
+	} else {
+		fis, err := fs.ReadDir("/virtual-go-workspace/src/" + importPath)
+		if err != nil {
+			log.Println("fs.ReadDir(importPath):", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
-		data.Folders = append(data.Folders, fi.Name())
-	}
 
-	{
-		elements := strings.Split(importPath, "/")
-		elements = elements[len(strings.Split(repoImportPath, "/")):]
+		for _, fi := range fis {
+			if !fi.IsDir() {
+				continue
+			}
+			data.Folders = append(data.Folders, fi.Name())
+		}
 
-		data.ImportPathElements = [][2]string{
-			[2]string{repoImportPath, repoImportPath},
+		{
+			elements := strings.Split(importPath, "/")
+			elements = elements[len(strings.Split(repoImportPath, "/")):]
+
+			data.ImportPathElements = [][2]string{
+				[2]string{repoImportPath, repoImportPath},
+			}
+			for i, e := range elements {
+				data.ImportPathElements = append(data.ImportPathElements,
+					[2]string{e, repoImportPath + "/" + path.Join(elements[:i+1]...)},
+				)
+			}
+			// Don't link the last element, since it's the current page.
+			data.ImportPathElements[len(data.ImportPathElements)-1][1] = ""
 		}
-		for i, e := range elements {
-			data.ImportPathElements = append(data.ImportPathElements,
-				[2]string{e, repoImportPath + "/" + path.Join(elements[:i+1]...)},
-			)
-		}
-		// Don't link the last element, since it's the current page.
-		data.ImportPathElements[len(data.ImportPathElements)-1][1] = ""
 	}
 
 	if bpkg != nil {
