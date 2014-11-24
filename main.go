@@ -267,7 +267,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 				panic(err)
 			}
 
-			fmt.Fprintf(&buf, "<h2 id=\"%s\">%s</h2>", sanitized_anchor_name.Create(goFile), html.EscapeString(goFile))
+			fmt.Fprintf(&buf, "<h2 id=\"%s\">%s<a class=\"anchor\" href=\"#%s\"><span class=\"anchor-icon\"></span></a></h2>", sanitized_anchor_name.Create(goFile), html.EscapeString(goFile), sanitized_anchor_name.Create(goFile))
 			io.WriteString(&buf, `<div class="highlight highlight-Go"><pre>`)
 			buf.Write(b)
 			io.WriteString(&buf, `</pre></div>`)
