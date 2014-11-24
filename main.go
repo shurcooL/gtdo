@@ -25,7 +25,6 @@ import (
 	"go/parser"
 	"go/token"
 
-	"github.com/shurcooL/go-goon"
 	"github.com/shurcooL/go/gists/gist5639599"
 	"github.com/shurcooL/go/gists/gist7480523"
 	"github.com/shurcooL/go/github_flavored_markdown/sanitized_anchor_name"
@@ -154,7 +153,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 
 	data := struct {
 		ImportPath         string
-		ImportPathElements [][2]string
+		ImportPathElements [][2]string // Element name, and full path to element.
 		Bpkg               *build.Package
 		Folders            []string
 		Files              template.HTML
@@ -184,8 +183,6 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		}
 		// Don't link the last element, since it's the current page.
 		data.ImportPathElements[len(data.ImportPathElements)-1][1] = ""
-
-		goon.DumpExpr(data.ImportPathElements)
 	}
 
 	if bpkg != nil {
@@ -397,7 +394,7 @@ func repoFromRequest(importPath, rev string) (repo vcs.Repository, repoImportPat
 		return nil, "", "", err
 	}
 
-	goon.DumpExpr(repoImportPath, cloneUrl, vcsRepo, err)
+	//goon.DumpExpr(repoImportPath, cloneUrl, vcsRepo, err)
 
 	repo, err = sg.Repository(vcsRepo.Type().VcsType(), cloneUrl)
 	if err != nil {
