@@ -17,7 +17,7 @@
 			<div style="padding-bottom: 50px;">
 				<div style="padding: 30px;">
 					<h1>{{template "ImportPath" .ImportPathElements}}</h1>
-					<ul>{{range .Folders}}{{if .IsDir}}<li><a href="/{{$.ImportPath}}/{{.Name}}">{{.Name}}</a></li>{{end}}{{end}}</ul>
+					<ul>{{range .Folders}}<li><a href="/{{$.ImportPath}}/{{.}}">{{.}}</a></li>{{end}}</ul>
 					{{if .Bpkg}}
 						{{/*<h1>{{if .Bpkg.IsCommand}}Command{{else}}Package{{end}} {{.Bpkg.Name}}</h1>*/}}
 						{{.Files}}

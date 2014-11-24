@@ -156,12 +156,18 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		ImportPath         string
 		ImportPathElements [][2]string
 		Bpkg               *build.Package
-		Folders            []os.FileInfo
+		Folders            []string
 		Files              template.HTML
 	}{
 		ImportPath: importPath,
 		Bpkg:       bpkg,
-		Folders:    fis,
+	}
+
+	for _, fi := range fis {
+		if !fi.IsDir() {
+			continue
+		}
+		data.Folders = append(data.Folders, fi.Name())
 	}
 
 	{
