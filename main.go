@@ -133,7 +133,9 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	log.Printf("req: importPath=%q rev=%q.\n", importPath, rev)
 
 	if importPath == "" {
-		err := t.ExecuteTemplate(w, "index.html.tmpl", nil)
+		recentlyViewed.lock.RLock()
+		err := t.ExecuteTemplate(w, "index.html.tmpl", recentlyViewed)
+		recentlyViewed.lock.RUnlock()
 		if err != nil {
 			log.Printf("t.ExecuteTemplate: %v\n", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -281,6 +283,10 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		log.Printf("t.ExecuteTemplate: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	if bpkg != nil {
+		sendToTop(bpkg.ImportPath)
 	}
 }
 

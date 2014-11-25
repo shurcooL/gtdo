@@ -32,7 +32,9 @@
 				<article style="padding: 30px;">
 					<p>Code displays the source code of Go packages from their import path.</p>
 					<p>It's currently in a MVP state: it just barely works, but there's lots of things to complete and improve.</p>
-					<p>Usage: <code>gotools.org/import-path</code></p>
+					<p>Usage: <code>gotools.org/import/path</code></p>
+					<h3>Recently Viewed Packages</h3>
+					<ul>{{range .Packages}}<li><a href="/{{.}}"><code>{{.}}</code></a></li>{{end}}</ul>
 				</article>
 			</div>
 			<div style="position: absolute; bottom: 0; left: 0; width: 100%; text-align: right; background-color: hsl(209, 51%, 92%);">
