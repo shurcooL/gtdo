@@ -1,3 +1,0 @@
-{{define "ImportPath"}}
-	{{range $i, $v := .}}{{if $i}}/{{end}}{{if (index $v 1)}}<a href="/{{(index $v 1)}}">{{(index $v 0)}}</a>{{else}}{{(index $v 0)}}{{end}}{{end}}
-{{end}}

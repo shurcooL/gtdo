@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"html"
 	"html/template"
 	"io"
 	"io/ioutil"
@@ -30,6 +29,7 @@ import (
 	"github.com/shurcooL/go/github_flavored_markdown/sanitized_anchor_name"
 	"github.com/shurcooL/go/gopherjs_http"
 	"github.com/shurcooL/go/highlight_go"
+	"github.com/shurcooL/go/html_gen"
 	vcs2 "github.com/shurcooL/go/vcs"
 	"github.com/shurcooL/go/vfs_util"
 	"github.com/sourcegraph/annotate"
@@ -41,6 +41,7 @@ import (
 	"github.com/sourcegraph/httpcache"
 	"github.com/sourcegraph/syntaxhighlight"
 	"github.com/sourcegraph/vcsstore/vcsclient"
+	"golang.org/x/net/html"
 	go_vcs "golang.org/x/tools/go/vcs"
 	"golang.org/x/tools/godoc/vfs"
 )
@@ -153,7 +154,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 
 	data := struct {
 		ImportPath         string
-		ImportPathElements [][2]string // Element name, and full path to element.
+		ImportPathElements template.HTML // Import path with linkified elements.
 		Bpkg               *build.Package
 		Folders            []string
 		Files              template.HTML
@@ -164,7 +165,10 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 
 	// For now, don't try to find the subfolders for standard Go packages.
 	if bpkg != nil && bpkg.Goroot {
-		data.ImportPathElements = [][2]string{[2]string{importPath, ""}}
+		data.ImportPathElements, err = html_gen.RenderNodes(html_gen.Text(importPath))
+		if err != nil {
+			panic(err)
+		}
 	} else {
 		fis, err := fs.ReadDir("/virtual-go-workspace/src/" + importPath)
 		if err != nil {
@@ -181,19 +185,31 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		}
 
 		{
-			elements := strings.Split(importPath, "/")
-			elements = elements[len(strings.Split(repoImportPath, "/")):]
+			// Elements of importPath, first element being repoImportPath.
+			// E.g., {"github.com/user/repo", "subpath", "package"}.
+			elements := []string{repoImportPath}
+			elements = append(elements, strings.Split(importPath[len(repoImportPath):], "/")[1:]...)
 
-			data.ImportPathElements = [][2]string{
-				[2]string{repoImportPath, repoImportPath},
+			var ns []*html.Node
+			for i, element := range elements {
+				if i != 0 {
+					ns = append(ns, html_gen.Text("/"))
+				}
+
+				path := path.Join(elements[:i+1]...)
+
+				// Don't link last importPath element, since it's the current page.
+				if path != importPath {
+					ns = append(ns, html_gen.A(element, template.URL("/"+path)))
+				} else {
+					ns = append(ns, html_gen.Text(element))
+				}
 			}
-			for i, e := range elements {
-				data.ImportPathElements = append(data.ImportPathElements,
-					[2]string{e, repoImportPath + "/" + path.Join(elements[:i+1]...)},
-				)
+
+			data.ImportPathElements, err = html_gen.RenderNodes(ns...)
+			if err != nil {
+				panic(err)
 			}
-			// Don't link the last element, since it's the current page.
-			data.ImportPathElements[len(data.ImportPathElements)-1][1] = ""
 		}
 	}
 
