@@ -35,15 +35,15 @@ import (
 	"github.com/sourcegraph/annotate"
 	"github.com/sourcegraph/apiproxy"
 	"github.com/sourcegraph/apiproxy/service/github"
-	"github.com/sourcegraph/go-vcs/vcs"
-	_ "github.com/sourcegraph/go-vcs/vcs/gitcmd"
-	_ "github.com/sourcegraph/go-vcs/vcs/hgcmd"
 	"github.com/sourcegraph/httpcache"
 	"github.com/sourcegraph/syntaxhighlight"
-	"github.com/sourcegraph/vcsstore/vcsclient"
 	"golang.org/x/net/html"
 	go_vcs "golang.org/x/tools/go/vcs"
 	"golang.org/x/tools/godoc/vfs"
+	"sourcegraph.com/sourcegraph/go-vcs/vcs"
+	_ "sourcegraph.com/sourcegraph/go-vcs/vcs/gitcmd"
+	_ "sourcegraph.com/sourcegraph/go-vcs/vcs/hgcmd"
+	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
 )
 
 var httpFlag = flag.String("http", ":8080", "Listen for HTTP connections on this address.")
