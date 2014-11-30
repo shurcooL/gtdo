@@ -241,8 +241,9 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 							continue
 						}
 						ann := &annotate.Annotation{
-							Start: pos + 1, // Don't include quote characters.
-							End:   end - 1,
+							Start:     pos,
+							End:       end,
+							WantInner: 1,
 
 							Left:  []byte(fmt.Sprintf(`<a href="%s" target="_blank">`, "/"+pathValue)),
 							Right: []byte(`</a>`),
