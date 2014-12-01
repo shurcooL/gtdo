@@ -145,7 +145,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	bpkg, repoImportPath, fs, branches, err := try(importPath, rev)
+	bpkg, repoImportPath, fs, branches, defaultBranch, err := try(importPath, rev)
 	if err != nil {
 		log.Println("try:", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -191,10 +191,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Branches.
-	{
-		// TODO: "master" should not be hardcoded, use vcs.DefaultBranch().
-		defaultBranch := "master"
-
+	if len(branches) != 0 {
 		data.Branches = select_menu.New(branches, defaultBranch, req.URL.Query(), "rev")
 	}
 
@@ -351,22 +348,22 @@ func tryLocal(importPath, rev string) (*build.Package, vfs.FileSystem, error) {
 }
 
 // Try local first, if not, try remote, if not, clone/update remote and try one last time.
-func try(importPath, rev string) (*build.Package, string, vfs.FileSystem, []string, error) {
+func try(importPath, rev string) (*build.Package, string, vfs.FileSystem, []string, string, error) {
 	bpkg, fs, err0 := tryLocal(importPath, rev)
 	fmt.Println("tryLocal err:", err0)
 	if err0 == nil {
-		return bpkg, "???", fs, nil, nil
+		return bpkg, "???", fs, nil, "", nil
 	}
 
 	// If local didn't work, try remote...
-	repo, repoImportPath, commitId, err := repoFromRequest(importPath, rev)
+	repo, repoImportPath, commitId, defaultBranch, err := repoFromRequest(importPath, rev)
 	if err != nil {
-		return nil, "", nil, nil, err
+		return nil, "", nil, nil, "", err
 	}
 
 	branches, err := repo.Branches()
 	if err != nil {
-		return nil, "", nil, nil, err
+		return nil, "", nil, nil, "", err
 	}
 	// Sort branches?
 	branchNames := make([]string, len(branches))
@@ -376,7 +373,7 @@ func try(importPath, rev string) (*build.Package, string, vfs.FileSystem, []stri
 
 	fs, err = repo.FileSystem(commitId)
 	if err != nil {
-		return nil, "", nil, nil, err
+		return nil, "", nil, nil, "", err
 	}
 
 	fs = vfs_util.NewPrefixFS(fs, "/virtual-go-workspace/src/"+repoImportPath)
@@ -385,10 +382,10 @@ func try(importPath, rev string) (*build.Package, string, vfs.FileSystem, []stri
 	context.GOPATH = "/virtual-go-workspace"
 	bpkg, err1 := context.Import(importPath, "", 0)
 	if err1 == nil {
-		return bpkg, repoImportPath, fs, branchNames, nil
+		return bpkg, repoImportPath, fs, branchNames, defaultBranch, nil
 	}
 
-	return nil, repoImportPath, fs, branchNames, nil
+	return nil, repoImportPath, fs, branchNames, defaultBranch, nil
 }
 
 func importPathToRepoGuess(importPath string) (repoImportPath string, cloneUrl *url.URL, vcsRepo vcs2.Vcs, err error) {
@@ -416,17 +413,17 @@ func importPathToRepoGuess(importPath string) (repoImportPath string, cloneUrl *
 	return repoImportPath, cloneUrl, vcsRepo, nil
 }
 
-func repoFromRequest(importPath, rev string) (repo vcs.Repository, repoImportPath string, commitId vcs.CommitID, err error) {
+func repoFromRequest(importPath, rev string) (repo vcs.Repository, repoImportPath string, commitId vcs.CommitID, defaultBranch string, err error) {
 	repoImportPath, cloneUrl, vcsRepo, err := importPathToRepoGuess(importPath)
 	if err != nil {
-		return nil, "", "", err
+		return nil, "", "", "", err
 	}
 
 	//goon.DumpExpr(repoImportPath, cloneUrl, vcsRepo, err)
 
 	repo, err = sg.Repository(vcsRepo.Type().VcsType(), cloneUrl)
 	if err != nil {
-		return nil, "", "", err
+		return nil, "", "", "", err
 	}
 
 	if rev != "" {
@@ -438,7 +435,7 @@ func repoFromRequest(importPath, rev string) (repo vcs.Repository, repoImportPat
 		err1 := repo.(vcsclient.RepositoryCloneUpdater).CloneOrUpdate(vcs.RemoteOpts{})
 		fmt.Println("repoFromRequest: CloneOrUpdate:", err1)
 		if err1 != nil {
-			return nil, "", "", MultiError{err, err1}
+			return nil, "", "", "", MultiError{err, err1}
 		}
 
 		if rev != "" {
@@ -447,14 +444,14 @@ func repoFromRequest(importPath, rev string) (repo vcs.Repository, repoImportPat
 			commitId, err1 = repo.ResolveBranch(vcsRepo.GetDefaultBranch())
 		}
 		if err1 != nil {
-			return nil, "", "", MultiError{err, err1}
+			return nil, "", "", "", MultiError{err, err1}
 		}
 		fmt.Println("repoFromRequest: worked on SECOND try")
 	} else {
 		fmt.Println("repoFromRequest: worked on first try")
 	}
 
-	return repo, repoImportPath, commitId, nil
+	return repo, repoImportPath, commitId, vcsRepo.GetDefaultBranch(), nil
 }
 
 func buildContextUsingFS(fs vfs.FileSystem) build.Context {
