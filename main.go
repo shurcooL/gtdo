@@ -24,6 +24,7 @@ import (
 	"go/parser"
 	"go/token"
 
+	"github.com/shurcooL/frontend/select_menu"
 	"github.com/shurcooL/go/gists/gist5639599"
 	"github.com/shurcooL/go/gists/gist7480523"
 	"github.com/shurcooL/go/github_flavored_markdown/sanitized_anchor_name"
@@ -102,14 +103,13 @@ func main() {
 Disallow: /
 `)
 	})
-	http.Handle("/command-r.go.js", gopherjs_http.StaticGoFiles("../frontend/select-list-view/main.go"))
 	http.HandleFunc("/command-r.css", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "../frontend/select-list-view/style.css")
 	})
-	http.Handle("/table-of-contents.go.js", gopherjs_http.StaticGoFiles("../frontend/table-of-contents/main.go"))
 	http.HandleFunc("/table-of-contents.css", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "../frontend/table-of-contents/style.css")
 	})
+	http.Handle("/script.go.js", gopherjs_http.StaticGoFiles("./assets/script.go"))
 
 	panic(http.ListenAndServe(*httpFlag, nil))
 }
@@ -145,7 +145,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	bpkg, repoImportPath, fs, err := try(importPath, rev)
+	bpkg, repoImportPath, fs, branches, err := try(importPath, rev)
 	if err != nil {
 		log.Println("try:", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -159,6 +159,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		Bpkg               *build.Package
 		Folders            []string
 		Files              template.HTML
+		Branches           template.HTML // Select menu for branches.
 	}{
 		Production: true,
 		ImportPath: importPath,
@@ -187,6 +188,14 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		}
 
 		data.ImportPathElements = ImportPathElementsHtml(repoImportPath, importPath)
+	}
+
+	// Branches.
+	{
+		// TODO: "master" should not be hardcoded, use vcs.DefaultBranch().
+		defaultBranch := "master"
+
+		data.Branches = select_menu.New(branches, defaultBranch, req.URL.Query(), "rev")
 	}
 
 	if bpkg != nil {
@@ -342,22 +351,32 @@ func tryLocal(importPath, rev string) (*build.Package, vfs.FileSystem, error) {
 }
 
 // Try local first, if not, try remote, if not, clone/update remote and try one last time.
-func try(importPath, rev string) (*build.Package, string, vfs.FileSystem, error) {
+func try(importPath, rev string) (*build.Package, string, vfs.FileSystem, []string, error) {
 	bpkg, fs, err0 := tryLocal(importPath, rev)
 	fmt.Println("tryLocal err:", err0)
 	if err0 == nil {
-		return bpkg, "???", fs, nil
+		return bpkg, "???", fs, nil, nil
 	}
 
 	// If local didn't work, try remote...
 	repo, repoImportPath, commitId, err := repoFromRequest(importPath, rev)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, "", nil, nil, err
+	}
+
+	branches, err := repo.Branches()
+	if err != nil {
+		return nil, "", nil, nil, err
+	}
+	// Sort branches?
+	branchNames := make([]string, len(branches))
+	for i, branch := range branches {
+		branchNames[i] = branch.Name
 	}
 
 	fs, err = repo.FileSystem(commitId)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, "", nil, nil, err
 	}
 
 	fs = vfs_util.NewPrefixFS(fs, "/virtual-go-workspace/src/"+repoImportPath)
@@ -366,10 +385,10 @@ func try(importPath, rev string) (*build.Package, string, vfs.FileSystem, error)
 	context.GOPATH = "/virtual-go-workspace"
 	bpkg, err1 := context.Import(importPath, "", 0)
 	if err1 == nil {
-		return bpkg, repoImportPath, fs, nil
+		return bpkg, repoImportPath, fs, branchNames, nil
 	}
 
-	return nil, repoImportPath, fs, nil
+	return nil, repoImportPath, fs, branchNames, nil
 }
 
 func importPathToRepoGuess(importPath string) (repoImportPath string, cloneUrl *url.URL, vcsRepo vcs2.Vcs, err error) {
