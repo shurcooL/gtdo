@@ -2,7 +2,7 @@
 	<head>
 		<title>Go Tools</title>
 		<link href="/assets/style.css" rel="stylesheet" type="text/css" />
-		{{template "GA"}}
+		{{if .Production}}{{template "GA"}}{{end}}
 	</head>
 {{end}}
 

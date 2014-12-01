@@ -153,12 +153,14 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	data := struct {
+		Production         bool
 		ImportPath         string
 		ImportPathElements template.HTML // Import path with linkified elements.
 		Bpkg               *build.Package
 		Folders            []string
 		Files              template.HTML
 	}{
+		Production: true,
 		ImportPath: importPath,
 		Bpkg:       bpkg,
 	}

@@ -4,7 +4,8 @@
 		<link href="/assets/style.css" rel="stylesheet" type="text/css" />
 		<link href="/command-r.css" media="all" rel="stylesheet" type="text/css" />
 		<link href="/table-of-contents.css" media="all" rel="stylesheet" type="text/css" />
-		{{template "GA"}}
+		{{if .Production}}{{template "GA"}}{{end}}
+		<script type="text/javascript" src="/script.go.js"></script>
 	</head>
 	<body>
 		<div style="position: relative; min-height: 100%;">
