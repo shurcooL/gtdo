@@ -202,7 +202,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 			fset := token.NewFileSet()
 			file, err := fs.Open(path.Join(bpkg.Dir, goFile))
 			if err != nil {
-				log.Panicln("fs.Open:", path.Join(bpkg.Dir, goFile), err)
+				log.Panicln(fs.String(), "fs.Open:", path.Join(bpkg.Dir, goFile), err)
 			}
 			src, err := ioutil.ReadAll(file)
 			if err != nil {
@@ -289,32 +289,32 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func tryLocal(importPath, rev string) (*build.Package, vfs.FileSystem, error) {
+func tryLocal(importPath, rev string) (*build.Package, string, vfs.FileSystem, error) {
 	goPackage := gist7480523.GoPackageFromImportPath(importPath)
 	if goPackage == nil {
-		return nil, nil, errors.New("no local go package")
+		return nil, "", nil, errors.New("no local go package")
 	}
 
 	if goPackage.Standard {
 		if rev != "" {
-			return nil, nil, errors.New("custom revision not yet supported for standard packages")
+			return nil, "", nil, errors.New("custom revision not yet supported for standard packages")
 		}
 
-		return goPackage.Bpkg, vfs.OS(""), nil
+		return goPackage.Bpkg, "", vfs.OS(""), nil
 	}
 
 	// TESTING: Disable local for non-standard library packages.
-	return nil, nil, errors.New("TESTING: local for non-standard library packages is disabled")
+	return nil, "", nil, errors.New("TESTING: local for non-standard library packages is disabled")
 
 	goPackage.UpdateVcs()
 	if goPackage.Dir.Repo == nil {
-		return nil, nil, errors.New("no local vcs root path")
+		return nil, "", nil, errors.New("no local vcs root path")
 	}
 	rootPath := goPackage.Dir.Repo.Vcs.RootPath()
 
 	repo, err := vcs.Open(goPackage.Dir.Repo.Vcs.Type().VcsType(), rootPath)
 	if err != nil {
-		return nil, nil, err
+		return nil, "", nil, err
 	}
 
 	var commitId vcs.CommitID
@@ -324,35 +324,39 @@ func tryLocal(importPath, rev string) (*build.Package, vfs.FileSystem, error) {
 		commitId, err = repo.ResolveBranch(goPackage.Dir.Repo.Vcs.GetDefaultBranch())
 	}
 	if err != nil {
-		return nil, nil, err
+		return nil, "", nil, err
 	}
 
 	fs, err := repo.FileSystem(commitId)
 	if err != nil {
-		return nil, nil, err
+		return nil, "", nil, err
 	}
 
 	// Verify it's an existing revision, etc.
 	_, err = fs.Stat(".")
 	if err != nil {
-		return nil, nil, err
+		return nil, "", nil, err
 	}
 
 	// This adapter is needed to make fs.Open("/main.go") work, since the repo's vfs only allows fs.Open("main.go").
 	// See https://github.com/sourcegraph/go-vcs/issues/23.
 	fs = vfs_util.NewRootedFS(fs)
 
-	fs = vfs_util.NewPrefixFS(fs, rootPath)
+	repoImportPath := gist7480523.GetRepoImportPath(rootPath, goPackage.Bpkg.SrcRoot)
+	fs = vfs_util.NewPrefixFS(fs, "/virtual-go-workspace/src/"+repoImportPath)
 
-	return goPackage.Bpkg, fs, nil
+	context := buildContextUsingFS(fs)
+	context.GOPATH = "/virtual-go-workspace"
+	bpkg, err := context.Import(importPath, "", 0)
+	return bpkg, repoImportPath, fs, err
 }
 
 // Try local first, if not, try remote, if not, clone/update remote and try one last time.
 func try(importPath, rev string) (*build.Package, string, vfs.FileSystem, []string, string, error) {
-	bpkg, fs, err0 := tryLocal(importPath, rev)
+	bpkg, repoImportPath, fs, err0 := tryLocal(importPath, rev)
 	fmt.Println("tryLocal err:", err0)
 	if err0 == nil {
-		return bpkg, "???", fs, nil, "", nil
+		return bpkg, repoImportPath, fs, nil, "", nil
 	}
 
 	// If local didn't work, try remote...
