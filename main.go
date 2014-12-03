@@ -48,6 +48,7 @@ import (
 )
 
 var httpFlag = flag.String("http", ":8080", "Listen for HTTP connections on this address.")
+var productionFlag = flag.Bool("production", false, "Production mode.")
 var vcsstoreHostFlag = flag.String("vcsstore-host", "localhost:9090", "Host of backing vcsstore.")
 
 var sg *vcsclient.Client
@@ -115,12 +116,14 @@ Disallow: /
 }
 
 func codeHandler(w http.ResponseWriter, req *http.Request) {
-	/*err := loadTemplates()
-	if err != nil {
-		log.Println("loadTemplates:", err)
-		http.Error(w, fmt.Sprintln("loadTemplates:", err), http.StatusInternalServerError)
-		return
-	}*/
+	if !*productionFlag {
+		err := loadTemplates()
+		if err != nil {
+			log.Println("loadTemplates:", err)
+			http.Error(w, fmt.Sprintln("loadTemplates:", err), http.StatusInternalServerError)
+			return
+		}
+	}
 
 	if req.URL.Path != "/" && req.URL.Path[len(req.URL.Path)-1] == '/' {
 		http.Redirect(w, req, req.URL.Path[:len(req.URL.Path)-1], http.StatusFound)
@@ -161,7 +164,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		Files              template.HTML
 		Branches           template.HTML // Select menu for branches.
 	}{
-		Production: true,
+		Production: *productionFlag,
 		ImportPath: importPath,
 		Bpkg:       bpkg,
 	}
