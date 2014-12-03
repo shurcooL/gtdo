@@ -5,6 +5,8 @@ import "sync"
 var recentlyViewed struct {
 	Packages [10]string // Index 0 is the top (most recently viewed Go package).
 	lock     sync.RWMutex
+
+	Production bool
 }
 
 // sendToTop sends importPath to top of recentlyViewed.Packages.

@@ -138,6 +138,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 
 	if importPath == "" {
 		recentlyViewed.lock.RLock()
+		recentlyViewed.Production = *productionFlag
 		err := t.ExecuteTemplate(w, "index.html.tmpl", recentlyViewed)
 		recentlyViewed.lock.RUnlock()
 		if err != nil {
