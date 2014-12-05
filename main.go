@@ -299,9 +299,9 @@ func tryLocal(importPath, rev string) (*build.Package, string, vfs.FileSystem, e
 		return nil, "", nil, errors.New("no local go package")
 	}
 
-	if goPackage.Standard {
+	if goPackage.Bpkg.Goroot {
 		if rev != "" {
-			return nil, "", nil, errors.New("custom revision not yet supported for standard packages")
+			return nil, "", nil, errors.New("custom revision not yet supported for GOROOT packages")
 		}
 
 		return goPackage.Bpkg, "", vfs.OS(""), nil
