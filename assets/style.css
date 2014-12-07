@@ -37,6 +37,27 @@ h1:hover .anchor, h2:hover .anchor, h3:hover .anchor, h4:hover .anchor, h5:hover
 	margin-left: 8px;
 }
 
+.header a:hover {
+	text-decoration: none;
+}
+
+.import-path-container input, button {
+	border: 1px solid lightgray;
+	padding-top: 2px;
+	padding-bottom: 2px;
+	background: white;
+	font-size: 16px;
+}
+.import-path-container input {
+	width: 600px;
+}
+.import-path-container button {
+	cursor: hand;
+}
+.import-path-container button:hover {
+	background: #eeeeee;
+}
+
 * {
 	tab-size: 4;
 }

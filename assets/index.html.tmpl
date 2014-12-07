@@ -1,11 +1,3 @@
-{{define "head"}}
-	<head>
-		<title>Go Tools</title>
-		<link href="/assets/style.css" rel="stylesheet" type="text/css" />
-		{{if .Production}}{{template "GA"}}{{end}}
-	</head>
-{{end}}
-
 {{define "GA"}}
 <script>
   (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
@@ -19,29 +11,39 @@
 </script>
 {{end}}
 
+{{define "header"}}
+<div class="header" style="width: 100%; background-color: hsl(209, 51%, 92%); font-size: 14px;">
+	<span style="margin-left: 30px; padding: 15px; display: inline-block;"><strong><a class="black" href="/">Go Tools</a></strong></span>
+</div>
+{{end}}
+
+{{define "footer"}}
+<div style="position: absolute; bottom: 0; left: 0; width: 100%; text-align: right; background-color: hsl(209, 51%, 92%);">
+	<span style="margin-right: 15px; padding: 15px; display: inline-block;"><a href="https://github.com/shurcooL/gtdo/issues" target="_blank">Report an issue</a></span>
+</div>
+{{end}}
+
 <html>
-	{{template "head" .}}
+	<head>
+		<title>Go Tools</title>
+		<link href="/assets/style.css" rel="stylesheet" type="text/css" />
+		{{if .Production}}{{template "GA"}}{{end}}
+	</head>
 	<body>
 		<div style="position: relative; min-height: 100%;">
-			<div style="width: 100%; background-color: hsl(209, 51%, 92%);">
-				<span style="margin-left: 30px; padding: 15px; display: inline-block;"><strong><a class="black" href="/">Go Tools</a></strong></span>
-				<span style="background-color: hsl(209, 51%, 88%); padding: 15px; display: inline-block;"><a class="black" href="/">Home</a></span>
-				<span style="padding: 15px; display: inline-block;">Code</span>
-			</div>
+			{{template "header"}}
 			<div style="padding-bottom: 50px;">
 				<article style="padding: 30px;">
-					<p>Code displays the source code of any Go package.</p>
-					<span style="background-color: #f2f2f2; padding: 20px; display: inline-block;">
-						<input id="import-path" style="width: 600px; font-size: 18px;" placeholder="import/path" autofocus onkeydown="if (event.keyCode != 13) { return; }; window.location = &quot;/&quot; + document.getElementById(&quot;import-path&quot;).value;">
-						<input type="button" value="Go" style="font-size: 18px;" onclick="window.location = &quot;/&quot; + document.getElementById(&quot;import-path&quot;).value;">
+					<p>There's one tool. It lets you see the source code of any Go package.</p>
+					<span class="import-path-container" style="background-color: #f2f2f2; padding: 20px; display: inline-block;">
+						<input id="import-path" placeholder="import/path" autofocus onkeydown="if (event.keyCode != 13) { return; }; window.location = &quot;/&quot; + document.getElementById(&quot;import-path&quot;).value;">
+						<button onclick="window.location = &quot;/&quot; + document.getElementById(&quot;import-path&quot;).value;">Go</button>
 					</span>
 					<h3>Recently Viewed Packages</h3>
 					<ul>{{range .Packages}}<li><a href="/{{.}}"><code>{{.}}</code></a></li>{{end}}</ul>
 				</article>
 			</div>
-			<div style="position: absolute; bottom: 0; left: 0; width: 100%; text-align: right; background-color: hsl(209, 51%, 92%);">
-				<span style="margin-right: 15px; padding: 15px; display: inline-block;"><a href="https://github.com/shurcooL/gtdo/issues" target="_blank">Report an issue</a></span>
-			</div>
+			{{template "footer"}}
 		</div>
 	</body>
 </html>

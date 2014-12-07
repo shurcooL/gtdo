@@ -9,12 +9,7 @@
 	</head>
 	<body>
 		<div style="position: relative; min-height: 100%;">
-			<div style="width: 100%; background-color: hsl(209, 51%, 92%);">
-				<span style="margin-left: 30px; padding: 15px; display: inline-block;"><strong><a class="black" href="/">Go Tools</a></strong></span>
-				<span style="padding: 15px; display: inline-block;"><a class="black" href="/">Home</a></span>
-				<span style="background-color: hsl(209, 51%, 88%); padding: 15px; display: inline-block;">Code</span>
-				<span style="padding: 15px; display: inline-block;"><strong>Cmd+R</strong>: Go To Symbol...</span>
-			</div>
+			{{template "header"}}
 			<div style="padding-bottom: 50px;">
 				<div style="padding: 30px;">
 					<h1>
@@ -30,9 +25,7 @@
 					{{end}}
 				</div>
 			</div>
-			<div style="position: absolute; bottom: 0; left: 0; width: 100%; text-align: right; background-color: hsl(209, 51%, 92%);">
-				<span style="margin-right: 15px; padding: 15px; display: inline-block;"><a href="https://github.com/shurcooL/gtdo/issues" target="_blank">Report an issue</a></span>
-			</div>
+			{{template "footer"}}
 		</div>
 	</body>
 </html>

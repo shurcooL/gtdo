@@ -70,6 +70,7 @@ func main() {
 		log.Fatalln("loadTemplates:", err)
 	}
 
+	// TODO: This is probably not completely right as it's GitHub-specific; fix that.
 	transport := &apiproxy.RevalidationTransport{
 		Transport: httpcache.NewMemoryCacheTransport(),
 		Check: (&githubproxy.MaxAge{
