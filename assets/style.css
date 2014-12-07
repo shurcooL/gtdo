@@ -33,7 +33,8 @@ h1:hover .anchor, h2:hover .anchor, h3:hover .anchor, h4:hover .anchor, h5:hover
 	display: inline;
 }
 .anchor-icon::before {
-	content: '¶';
+	content: '\f05c'; /* https://octicons.github.com/icon/link/ */
+	color: black;
 	margin-left: 8px;
 }
 

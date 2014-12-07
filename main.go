@@ -227,41 +227,24 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 			for _, decl := range fileAst.Decls {
 				switch d := decl.(type) {
 				case *ast.FuncDecl:
-					pos := fset.File(d.Pos()).Offset(d.Pos())
 					funcDeclSignature := &ast.FuncDecl{Recv: d.Recv, Name: d.Name, Type: d.Type}
 					name := d.Name.String()
 					if d.Recv != nil {
 						name = strings.TrimPrefix(gist5639599.SprintAstBare(d.Recv.List[0].Type), "*") + "." + name
 					}
-					ann := &annotate.Annotation{
-						Start: pos,
-						End:   pos + len(gist5639599.SprintAstBare(funcDeclSignature)),
-
-						Left:  []byte(fmt.Sprintf(`<h3 id="%s">`, name)),
-						Right: []byte(`</h3>`),
-					}
-					anns = append(anns, ann)
+					anns = append(anns, annotateNode(fset, funcDeclSignature, fmt.Sprintf(`<h3 id="%s">`, name), `</h3>`))
+					anns = append(anns, annotateNode(fset, d.Name, fmt.Sprintf(`<a href="%s">`, "#"+name), `</a>`))
 				case *ast.GenDecl:
 					if d.Tok != token.IMPORT {
 						continue
 					}
 					for _, imp := range d.Specs {
 						path := imp.(*ast.ImportSpec).Path
-						pos := fset.File(path.Pos()).Offset(path.Pos())
-						end := fset.File(path.End()).Offset(path.End())
 						pathValue, err := strconv.Unquote(path.Value)
 						if err != nil {
 							continue
 						}
-						ann := &annotate.Annotation{
-							Start:     pos,
-							End:       end,
-							WantInner: 1,
-
-							Left:  []byte(fmt.Sprintf(`<a href="%s" target="_blank">`, "/"+pathValue)),
-							Right: []byte(`</a>`),
-						}
-						anns = append(anns, ann)
+						anns = append(anns, annotateNode(fset, path, fmt.Sprintf(`<a href="%s" target="_blank">`, "/"+pathValue), `</a>`))
 					}
 				}
 			}
@@ -273,7 +256,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 				panic(err)
 			}
 
-			fmt.Fprintf(&buf, "<h2 id=\"%s\">%s<a class=\"anchor\" href=\"#%s\"><span class=\"anchor-icon\"></span></a></h2>", sanitized_anchor_name.Create(goFile), html.EscapeString(goFile), sanitized_anchor_name.Create(goFile))
+			fmt.Fprintf(&buf, "<h2 id=\"%s\">%s<a class=\"anchor\" href=\"#%s\"><span class=\"anchor-icon octicon\"></span></a></h2>", sanitized_anchor_name.Create(goFile), html.EscapeString(goFile), sanitized_anchor_name.Create(goFile))
 			io.WriteString(&buf, `<div class="highlight highlight-Go"><pre>`)
 			buf.Write(b)
 			io.WriteString(&buf, `</pre></div>`)
