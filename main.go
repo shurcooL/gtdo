@@ -294,7 +294,7 @@ func tryLocal(importPath, rev string) (*build.Package, string, vfs.FileSystem, e
 	// TESTING: Disable local for non-standard library packages.
 	return nil, "", nil, errors.New("TESTING: local for non-standard library packages is disabled")
 
-	goPackage.UpdateVcs()
+	/*goPackage.UpdateVcs()
 	if goPackage.Dir.Repo == nil {
 		return nil, "", nil, errors.New("no local vcs root path")
 	}
@@ -336,7 +336,7 @@ func tryLocal(importPath, rev string) (*build.Package, string, vfs.FileSystem, e
 	context := buildContextUsingFS(fs)
 	context.GOPATH = "/virtual-go-workspace"
 	bpkg, err := context.Import(importPath, "", 0)
-	return bpkg, repoImportPath, fs, err
+	return bpkg, repoImportPath, fs, err*/
 }
 
 // Try local first, if not, try remote, if not, clone/update remote and try one last time.

@@ -384,7 +384,7 @@ func normalGet(method string, c *http.Client, url *url.URL) {
 	}
 
 	if !(resp.StatusCode >= 200 && resp.StatusCode <= 399) {
-		log.Fatal("Error: HTTP %d: %s.", resp.StatusCode, body)
+		log.Fatalf("Error: HTTP %d: %s.", resp.StatusCode, body)
 	}
 
 	fmt.Println(string(body))
