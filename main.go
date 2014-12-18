@@ -377,6 +377,7 @@ func try(importPath, rev string) (*build.Package, string, vfs.FileSystem, []stri
 
 	context := buildContextUsingFS(fs)
 	context.GOPATH = "/virtual-go-workspace"
+	context.UseAllFiles = true // TODO: Also do this for local packages.
 	bpkg, err1 := context.Import(importPath, "", 0)
 	if err1 == nil {
 		return bpkg, repoImportPath, fs, branchNames, defaultBranch, nil
