@@ -235,16 +235,21 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 					anns = append(anns, annotateNode(fset, funcDeclSignature, fmt.Sprintf(`<h3 id="%s">`, name), `</h3>`))
 					anns = append(anns, annotateNode(fset, d.Name, fmt.Sprintf(`<a href="%s">`, "#"+name), `</a>`))
 				case *ast.GenDecl:
-					if d.Tok != token.IMPORT {
-						continue
-					}
-					for _, imp := range d.Specs {
-						path := imp.(*ast.ImportSpec).Path
-						pathValue, err := strconv.Unquote(path.Value)
-						if err != nil {
-							continue
+					switch d.Tok {
+					case token.IMPORT:
+						for _, imp := range d.Specs {
+							path := imp.(*ast.ImportSpec).Path
+							pathValue, err := strconv.Unquote(path.Value)
+							if err != nil {
+								continue
+							}
+							anns = append(anns, annotateNode(fset, path, fmt.Sprintf(`<a href="%s" target="_blank">`, "/"+pathValue), `</a>`))
 						}
-						anns = append(anns, annotateNode(fset, path, fmt.Sprintf(`<a href="%s" target="_blank">`, "/"+pathValue), `</a>`))
+					case token.TYPE:
+						for _, spec := range d.Specs {
+							name := spec.(*ast.TypeSpec).Name.String()
+							anns = append(anns, annotateNode(fset, spec.(*ast.TypeSpec).Name, fmt.Sprintf(`<h3 id="%s">`, name), `</h3>`))
+						}
 					}
 				}
 			}
