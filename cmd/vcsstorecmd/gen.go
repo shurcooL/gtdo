@@ -17,7 +17,7 @@ import (
 // Copy source of sourcegraph.com/sourcegraph/vcsstore/cmd/vcsstore,
 // but use gitcmd backend instead of native git one.
 func main() {
-	bpkg, err := build.Import("sourcegraph.com/sourcegraph/vcsstore/cmd/vcsstore", "", 0)
+	bpkg, err := build.Import("sourcegraph.com/sourcegraph/vcsstore/cmd/vcsstore", "", build.ImportComment)
 	if err != nil {
 		panic(err)
 	}
