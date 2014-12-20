@@ -227,13 +227,12 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 			for _, decl := range fileAst.Decls {
 				switch d := decl.(type) {
 				case *ast.FuncDecl:
-					funcDeclSignature := &ast.FuncDecl{Recv: d.Recv, Name: d.Name, Type: d.Type}
 					name := d.Name.String()
 					if d.Recv != nil {
 						name = strings.TrimPrefix(gist5639599.SprintAstBare(d.Recv.List[0].Type), "*") + "." + name
 					}
-					anns = append(anns, annotateNode(fset, funcDeclSignature, fmt.Sprintf(`<h3 id="%s">`, name), `</h3>`))
-					anns = append(anns, annotateNode(fset, d.Name, fmt.Sprintf(`<a href="%s">`, "#"+name), `</a>`))
+					anns = append(anns, annotateNode(fset, d.Name, fmt.Sprintf(`<h3 id="%s">`, name), `</h3>`, 1))
+					anns = append(anns, annotateNode(fset, d.Name, fmt.Sprintf(`<a href="%s">`, "#"+name), `</a>`, 2))
 				case *ast.GenDecl:
 					switch d.Tok {
 					case token.IMPORT:
@@ -243,12 +242,12 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 							if err != nil {
 								continue
 							}
-							anns = append(anns, annotateNode(fset, path, fmt.Sprintf(`<a href="%s" target="_blank">`, "/"+pathValue), `</a>`))
+							anns = append(anns, annotateNode(fset, path, fmt.Sprintf(`<a href="%s" target="_blank">`, "/"+pathValue), `</a>`, 1))
 						}
 					case token.TYPE:
 						for _, spec := range d.Specs {
 							name := spec.(*ast.TypeSpec).Name.String()
-							anns = append(anns, annotateNode(fset, spec.(*ast.TypeSpec).Name, fmt.Sprintf(`<h3 id="%s">`, name), `</h3>`))
+							anns = append(anns, annotateNode(fset, spec.(*ast.TypeSpec).Name, fmt.Sprintf(`<h3 id="%s">`, name), `</h3>`, 1))
 						}
 					}
 				}

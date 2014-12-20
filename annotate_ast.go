@@ -13,11 +13,11 @@ func fileOffset(fset *token.FileSet, pos token.Pos) int {
 }
 
 // annotateNode annonates the given node with left and right.
-func annotateNode(fset *token.FileSet, node ast.Node, left, right string) *annotate.Annotation {
+func annotateNode(fset *token.FileSet, node ast.Node, left, right string, level int) *annotate.Annotation {
 	return &annotate.Annotation{
 		Start:     fileOffset(fset, node.Pos()),
 		End:       fileOffset(fset, node.End()),
-		WantInner: 1,
+		WantInner: level,
 
 		Left:  []byte(left),
 		Right: []byte(right),

@@ -33,10 +33,10 @@ func ExampleImportPathElementsHtml() {
 	}
 
 	// Output:
-	//<a href="/github.com/shurcooL/go">github.com/shurcooL/go</a>/<a href="/github.com/shurcooL/go/u">u</a>/u10
-	//rsc.io/pd&amp;f
-	//rsc.io/pdf
-	//<a href="/rsc.io/pdf">rsc.io/pdf</a>/pdfpasswd
+	// <a href="/github.com/shurcooL/go">github.com/shurcooL/go</a>/<a href="/github.com/shurcooL/go/u">u</a>/u10
+	// rsc.io/pd&amp;f
+	// rsc.io/pdf
+	// <a href="/rsc.io/pdf">rsc.io/pdf</a>/pdfpasswd
 }
 
 func previousHtmlTemplateApproach(repoImportPath, importPath string) template.HTML {
