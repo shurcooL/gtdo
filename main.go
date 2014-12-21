@@ -12,11 +12,13 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"go/ast"
@@ -26,6 +28,7 @@ import (
 
 	"github.com/shurcooL/frontend/select_menu"
 	"github.com/shurcooL/go/gists/gist5639599"
+	"github.com/shurcooL/go/gists/gist7390843"
 	"github.com/shurcooL/go/gists/gist7480523"
 	"github.com/shurcooL/go/github_flavored_markdown/sanitized_anchor_name"
 	"github.com/shurcooL/go/gopherjs_http"
@@ -50,6 +53,7 @@ import (
 var httpFlag = flag.String("http", ":8080", "Listen for HTTP connections on this address.")
 var productionFlag = flag.Bool("production", false, "Production mode.")
 var vcsstoreHostFlag = flag.String("vcsstore-host", "localhost:9090", "Host of backing vcsstore.")
+var stateFileFlag = flag.String("state-file", "", "File to save/load state.")
 
 var sg *vcsclient.Client
 
@@ -113,7 +117,26 @@ Disallow: /
 	})
 	http.Handle("/script.go.js", gopherjs_http.StaticGoFiles("./assets/script.go"))
 
-	panic(http.ListenAndServe(*httpFlag, nil))
+	if *stateFileFlag != "" {
+		_ = loadState(*stateFileFlag)
+	}
+
+	stopServerChan := make(chan struct{})
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT)
+	go func() {
+		<-signalChan
+		stopServerChan <- struct{}{}
+	}()
+
+	err = gist7390843.ListenAndServeStoppable(*httpFlag, nil, stopServerChan)
+	if err != nil {
+		log.Println("ListenAndServeStoppable:", err)
+	}
+
+	if *stateFileFlag != "" {
+		_ = saveState(*stateFileFlag)
+	}
 }
 
 func codeHandler(w http.ResponseWriter, req *http.Request) {

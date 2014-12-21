@@ -1,6 +1,10 @@
 package main
 
-import "sync"
+import (
+	"encoding/gob"
+	"os"
+	"sync"
+)
 
 var recentlyViewed struct {
 	Packages [10]string // Index 0 is the top (most recently viewed Go package).
@@ -25,4 +29,34 @@ func sendToTop(importPath string) {
 	}
 	recentlyViewed.Packages[0] = importPath
 	recentlyViewed.lock.Unlock()
+}
+
+func loadState(filename string) error {
+	file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	dec := gob.NewDecoder(file)
+
+	err = dec.Decode(&recentlyViewed.Packages)
+
+	return err
+}
+
+func saveState(filename string) error {
+	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	enc := gob.NewEncoder(file)
+
+	recentlyViewed.lock.RLock()
+	err = enc.Encode(recentlyViewed.Packages)
+	recentlyViewed.lock.RUnlock()
+
+	return err
 }
