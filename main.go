@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"errors"
 	"flag"
 	"fmt"
@@ -303,7 +304,13 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		data.Files = template.HTML(buf.String())
 	}
 
-	err = t.ExecuteTemplate(w, "code.html.tmpl", &data)
+	// Use gzip compression.
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Encoding", "gzip") // TODO: Check "Accept-Encoding"?
+	gw := gzip.NewWriter(w)
+	defer gw.Close()
+
+	err = t.ExecuteTemplate(gw, "code.html.tmpl", &data)
 	if err != nil {
 		log.Printf("t.ExecuteTemplate: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
