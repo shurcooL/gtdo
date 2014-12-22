@@ -226,7 +226,18 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	if bpkg != nil {
 		var buf bytes.Buffer
 
-		for _, goFile := range append(bpkg.GoFiles, bpkg.CgoFiles...) {
+		// Get all .go files, sort by name.
+		// For now, do not include any test files.
+		goFiles := append(bpkg.GoFiles, bpkg.CgoFiles...)
+		for _, goFile := range bpkg.IgnoredGoFiles {
+			isTest := strings.HasSuffix(goFile, "_test.go") // Logic from go/build.
+			if !isTest {
+				goFiles = append(goFiles, goFile)
+			}
+		}
+		sort.Strings(goFiles)
+
+		for _, goFile := range goFiles {
 			fset := token.NewFileSet()
 			file, err := fs.Open(path.Join(bpkg.Dir, goFile))
 			if err != nil {
@@ -315,18 +326,7 @@ func tryLocal(importPath, rev string) (*build.Package, string, vfs.FileSystem, e
 			return nil, "", nil, errors.New("custom revision not yet supported for GOROOT packages")
 		}
 
-		var context build.Context = build.Default
-		context.UseAllFiles = true
-		bpkg, err1 := context.Import(importPath, "", 0)
-		// TODO: Currently, MultiplePackageError may result in incomplete package being returned. Need to do something about that.
-		//       I think it might be an issue in go/build; perhaps it makes sense not to return MultiplePackageError when UseAllFiles is
-		//       explicitly set to true. It might not be an issue in go/build though, I haven't investigated closely enough yet.
-		if _, multiplePackage := err1.(*build.MultiplePackageError); multiplePackage {
-			err1 = nil
-		}
-		if err1 == nil {
-			return bpkg, "", vfs.OS(""), nil
-		}
+		return goPackage.Bpkg, "", vfs.OS(""), nil
 	}
 
 	// TESTING: Disable local for non-standard library packages.
@@ -410,14 +410,7 @@ func try(importPath, rev string) (*build.Package, string, vfs.FileSystem, []stri
 
 	context := buildContextUsingFS(fs)
 	context.GOPATH = "/virtual-go-workspace"
-	context.UseAllFiles = true
 	bpkg, err1 := context.Import(importPath, "", 0)
-	// TODO: Currently, MultiplePackageError may result in incomplete package being returned. Need to do something about that.
-	//       I think it might be an issue in go/build; perhaps it makes sense not to return MultiplePackageError when UseAllFiles is
-	//       explicitly set to true. It might not be an issue in go/build though, I haven't investigated closely enough yet.
-	if _, multiplePackage := err1.(*build.MultiplePackageError); multiplePackage {
-		err1 = nil
-	}
 	if err1 == nil {
 		return bpkg, repoImportPath, fs, branchNames, defaultBranch, nil
 	}
