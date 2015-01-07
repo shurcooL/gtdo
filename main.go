@@ -265,8 +265,10 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 					name := d.Name.String()
 					if d.Recv != nil {
 						name = strings.TrimPrefix(gist5639599.SprintAstBare(d.Recv.List[0].Type), "*") + "." + name
+						anns = append(anns, annotateNodes(fset, d.Recv, d.Name, fmt.Sprintf(`<h3 id="%s" data-display="%s">`, name, name), `</h3>`, 1))
+					} else {
+						anns = append(anns, annotateNode(fset, d.Name, fmt.Sprintf(`<h3 id="%s">`, name), `</h3>`, 1))
 					}
-					anns = append(anns, annotateNode(fset, d.Name, fmt.Sprintf(`<h3 id="%s">`, name), `</h3>`, 1))
 					anns = append(anns, annotateNode(fset, d.Name, fmt.Sprintf(`<a href="%s">`, "#"+name), `</a>`, 2))
 				case *ast.GenDecl:
 					switch d.Tok {
