@@ -3,15 +3,17 @@
 package main
 
 import (
+	"go/ast"
 	"go/build"
 	"go/format"
 	"go/parser"
 	"go/token"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 
-	"golang.org/x/tools/astutil"
+	"golang.org/x/tools/go/ast/astutil"
 )
 
 // Copy source of sourcegraph.com/sourcegraph/vcsstore/cmd/vcsstore,
@@ -22,11 +24,11 @@ func main() {
 		panic(err)
 	}
 
-	if len(bpkg.GoFiles) != 1 {
-		panic("len(bpkg.GoFiles) != 1")
+	if len(bpkg.CgoFiles) != 1 {
+		log.Fatalln("len(bpkg.CgoFiles) != 1")
 	}
 
-	filename := filepath.Join(bpkg.Dir, bpkg.GoFiles[0])
+	filename := filepath.Join(bpkg.Dir, bpkg.CgoFiles[0])
 
 	fset := token.NewFileSet()
 	astFile, err := parser.ParseFile(fset, filename, nil, parser.ParseComments)
@@ -34,10 +36,19 @@ func main() {
 		panic(err)
 	}
 
+	cmap := ast.NewCommentMap(fset, astFile, astFile.Comments)
+
+	deleted := astutil.DeleteImport(fset, astFile, "C")
+	if !deleted {
+		panic("!deleted")
+	}
+
 	rewrote := astutil.RewriteImport(fset, astFile, "sourcegraph.com/sourcegraph/go-vcs/vcs/git", "sourcegraph.com/sourcegraph/go-vcs/vcs/gitcmd")
 	if !rewrote {
 		panic("!rewrote")
 	}
+
+	astFile.Comments = cmap.Filter(astFile).Comments()
 
 	f, err := os.OpenFile("./main.go", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
