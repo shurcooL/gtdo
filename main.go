@@ -130,6 +130,11 @@ Disallow: /
 }
 
 func codeHandler(w http.ResponseWriter, req *http.Request) {
+	const (
+		revisionQueryParameter = "rev"
+		testsQueryParameter    = "tests"
+	)
+
 	if !*productionFlag {
 		err := loadTemplates()
 		if err != nil {
@@ -145,8 +150,8 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	importPath := req.URL.Path[1:]
-	rev := req.URL.Query().Get("rev")
-	_, _ = importPath, rev
+	rev := req.URL.Query().Get(revisionQueryParameter)
+	_, includeTestFiles := req.URL.Query()[testsQueryParameter]
 
 	log.Printf("req: importPath=%q rev=%q.\n", importPath, rev)
 
@@ -210,18 +215,24 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 
 	// Branches.
 	if len(branches) != 0 {
-		data.Branches = select_menu.New(branches, defaultBranch, req.URL.Query(), "rev")
+		data.Branches = select_menu.New(branches, defaultBranch, req.URL.Query(), revisionQueryParameter)
 	}
 
 	if bpkg != nil {
 		var buf bytes.Buffer
 
 		// Get all .go files, sort by name.
-		// For now, do not include any test files.
 		goFiles := append(bpkg.GoFiles, bpkg.CgoFiles...)
+		if includeTestFiles {
+			goFiles = append(goFiles, bpkg.TestGoFiles...)
+			goFiles = append(goFiles, bpkg.XTestGoFiles...)
+		}
 		for _, goFile := range bpkg.IgnoredGoFiles {
 			isTest := strings.HasSuffix(goFile, "_test.go") // Logic from go/build.
-			if !isTest {
+			// When we care about differentiating test files in/outside package,
+			// then need to calculate isXTest correctly, likely by doing
+			// parser.ParseFile(..., parser.PackageClauseOnly) again.
+			if !isTest || includeTestFiles {
 				goFiles = append(goFiles, goFile)
 			}
 		}
