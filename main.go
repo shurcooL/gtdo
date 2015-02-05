@@ -26,6 +26,7 @@ import (
 	"go/parser"
 	"go/token"
 
+	"github.com/shurcooL/frontend/checkbox"
 	"github.com/shurcooL/frontend/select_menu"
 	"github.com/shurcooL/go/gists/gist5639599"
 	"github.com/shurcooL/go/gists/gist7390843"
@@ -183,6 +184,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		Folders            []string
 		Files              template.HTML
 		Branches           template.HTML // Select menu for branches.
+		Tests              template.HTML // Checkbox for tests.
 	}{
 		Production: *productionFlag,
 		ImportPath: importPath,
@@ -217,6 +219,9 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	if len(branches) != 0 {
 		data.Branches = select_menu.New(branches, defaultBranch, req.URL.Query(), revisionQueryParameter)
 	}
+
+	// Tests checkbox.
+	data.Tests = checkbox.New(false, req.URL.Query(), testsQueryParameter)
 
 	if bpkg != nil {
 		var buf bytes.Buffer

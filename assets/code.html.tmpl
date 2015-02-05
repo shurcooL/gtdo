@@ -14,7 +14,8 @@
 			<div style="padding-bottom: 50px;">
 				<div style="padding: 30px;">
 					<h1>{{.ImportPathElements}}</h1>
-					{{with .Branches}}<span class="octicon octicon-git-branch" style="margin-right: 8px;" title="Branch"></span>{{.}}{{end}}
+					{{with .Branches}}<span class="spacing" title="Branch"><span class="octicon octicon-git-branch" style="margin-right: 8px;"></span>{{.}}</span>{{end}}
+					<span class="spacing" title="Display Test Files"><label>{{.Tests}}Tests</label></span>
 					{{if .Folders}}
 						<ul>{{range .Folders}}<li><a href="/{{$.ImportPath}}/{{.}}">{{.}}</a></li>{{end}}</ul>
 					{{end}}

@@ -26,6 +26,10 @@ article > *:first-child {
 	margin-top: 0;
 }
 
+span.spacing {
+	margin-right: 4px;
+}
+
 .anchor {
 	display: none;
 }
