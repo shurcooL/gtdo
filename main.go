@@ -20,7 +20,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 
 	"go/ast"
 	"go/build"
@@ -38,8 +37,6 @@ import (
 	"github.com/shurcooL/go/vfs_util"
 	"github.com/shurcooL/sanitized_anchor_name"
 	"github.com/sourcegraph/annotate"
-	"github.com/sourcegraph/apiproxy"
-	"github.com/sourcegraph/apiproxy/service/github"
 	"github.com/sourcegraph/httpcache"
 	"github.com/sourcegraph/syntaxhighlight"
 	"golang.org/x/net/html"
@@ -75,16 +72,8 @@ func main() {
 		log.Fatalln("loadTemplates:", err)
 	}
 
-	// TODO: This is probably not completely right as it's GitHub-specific; fix that.
-	transport := &apiproxy.RevalidationTransport{
-		Transport: httpcache.NewMemoryCacheTransport(),
-		Check: (&githubproxy.MaxAge{
-			User:         time.Hour * 24,
-			Repository:   time.Hour * 24,
-			Repositories: time.Hour * 24,
-			Activity:     time.Hour * 12,
-		}).Validator(),
-	}
+	// TODO: This likely has room for improvement, investigate this carefully and improve.
+	transport := httpcache.NewMemoryCacheTransport()
 	cacheClient := &http.Client{Transport: transport}
 
 	sg = vcsclient.New(&url.URL{Scheme: "http", Host: *vcsstoreHostFlag}, cacheClient)
