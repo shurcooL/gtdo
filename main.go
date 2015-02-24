@@ -189,14 +189,12 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		Production: *productionFlag,
 		ImportPath: importPath,
 		Bpkg:       bpkg,
+		Tests:      checkbox.New(false, req.URL.Query(), testsQueryParameter),
 	}
 
 	// For now, don't try to find the subfolders for standard Go packages.
 	if bpkg != nil && bpkg.Goroot {
-		data.ImportPathElements, err = html_gen.RenderNodes(html_gen.Text(importPath))
-		if err != nil {
-			panic(err)
-		}
+		data.ImportPathElements = html_gen.Must(html_gen.RenderNodes(html_gen.Text(importPath)))
 	} else {
 		fis, err := fs.ReadDir("/virtual-go-workspace/src/" + importPath)
 		if err != nil {
@@ -219,9 +217,6 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	if len(branches) != 0 {
 		data.Branches = select_menu.New(branches, defaultBranch, req.URL.Query(), revisionQueryParameter)
 	}
-
-	// Tests checkbox.
-	data.Tests = checkbox.New(false, req.URL.Query(), testsQueryParameter)
 
 	if bpkg != nil {
 		var buf bytes.Buffer
