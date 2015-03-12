@@ -13,22 +13,21 @@ var recentlyViewed struct {
 	Production bool
 }
 
-// sendToTop sends importPath to top of recentlyViewed.Packages.
+// sendToTop sends importPath to top of recentlyViewed.Packages if it's not already present.
 func sendToTop(importPath string) {
 	recentlyViewed.lock.Lock()
-	var target int // Index of package that will disappear.
-	for i, p := range recentlyViewed.Packages {
-		target = i
+	defer recentlyViewed.lock.Unlock()
+	// Check if package is already present, then do nothing.
+	for _, p := range recentlyViewed.Packages {
 		if p == importPath {
-			break
+			return
 		}
 	}
-	// Shift all packages from top to target down by one.
-	for ; target > 0; target-- {
-		recentlyViewed.Packages[target] = recentlyViewed.Packages[target-1]
+	// Shift all packages down by one.
+	for i := len(recentlyViewed.Packages) - 1; i > 0; i-- {
+		recentlyViewed.Packages[i] = recentlyViewed.Packages[i-1]
 	}
 	recentlyViewed.Packages[0] = importPath
-	recentlyViewed.lock.Unlock()
 }
 
 func loadState(filename string) error {
