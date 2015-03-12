@@ -265,7 +265,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 					name := d.Name.String()
 					if d.Recv != nil {
 						name = strings.TrimPrefix(gist5639599.SprintAstBare(d.Recv.List[0].Type), "*") + "." + name
-						anns = append(anns, annotateNodes(fset, d.Recv, d.Name, fmt.Sprintf(`<h3 id="%s" data-display="%s">`, name, name), `</h3>`, 1))
+						anns = append(anns, annotateNodes(fset, d.Recv, d.Name, fmt.Sprintf(`<h3 id="%s">`, name), `</h3>`, 1))
 					} else {
 						anns = append(anns, annotateNode(fset, d.Name, fmt.Sprintf(`<h3 id="%s">`, name), `</h3>`, 1))
 					}
@@ -297,7 +297,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 				panic(err)
 			}
 
-			fmt.Fprintf(&buf, "<h2 id=\"%s\">%s<a class=\"anchor\" href=\"#%s\"><span class=\"anchor-icon octicon\"></span></a></h2>", sanitized_anchor_name.Create(goFile), html.EscapeString(goFile), sanitized_anchor_name.Create(goFile))
+			fmt.Fprintf(&buf, `<h2 id="%s">%s<a class="anchor" href="#%s"><span class="anchor-icon octicon"></span></a></h2>`, sanitized_anchor_name.Create(goFile), html.EscapeString(goFile), sanitized_anchor_name.Create(goFile))
 			io.WriteString(&buf, `<div class="highlight highlight-Go"><pre>`)
 			buf.Write(b)
 			io.WriteString(&buf, `</pre></div>`)
