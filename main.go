@@ -283,8 +283,16 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 						}
 					case token.TYPE:
 						for _, spec := range d.Specs {
-							name := spec.(*ast.TypeSpec).Name.String()
-							anns = append(anns, annotateNode(fset, spec.(*ast.TypeSpec).Name, fmt.Sprintf(`<h3 id="%s">`, name), `</h3>`, 1))
+							ident := spec.(*ast.TypeSpec).Name
+							anns = append(anns, annotateNode(fset, ident, fmt.Sprintf(`<h3 id="%s">`, ident.String()), `</h3>`, 1))
+							anns = append(anns, annotateNode(fset, ident, fmt.Sprintf(`<a href="%s">`, "#"+ident.String()), `</a>`, 2))
+						}
+					case token.CONST, token.VAR:
+						for _, spec := range d.Specs {
+							for _, ident := range spec.(*ast.ValueSpec).Names {
+								anns = append(anns, annotateNode(fset, ident, fmt.Sprintf(`<h3 id="%s">`, ident.String()), `</h3>`, 1))
+								anns = append(anns, annotateNode(fset, ident, fmt.Sprintf(`<a href="%s">`, "#"+ident.String()), `</a>`, 2))
+							}
 						}
 					}
 				}
