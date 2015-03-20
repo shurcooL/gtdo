@@ -55,6 +55,8 @@ h1:hover .anchor, h2:hover .anchor, h3:hover .anchor, h4:hover .anchor, h5:hover
 }
 .import-path-container input {
 	width: 600px;
+	border-radius: 0px;
+	-webkit-appearance: none;
 }
 .import-path-container button {
 	cursor: hand;
