@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
+	"log"
 	"path"
 	"strings"
 
@@ -19,14 +20,16 @@ func ExampleImportPathElementsHtml() {
 		{"rsc.io/pd&f", "rsc.io/pd&f"},
 		{"rsc.io/pdf", "rsc.io/pdf"},
 		{"rsc.io/pdf", "rsc.io/pdf/pdfpasswd"},
+		{"io", "io"},
+		{"io", "io/ioutil"},
 	}
 
 	for _, i := range inputs {
-		out1 := previousHtmlTemplateApproach(i.repoImportPath, i.importPath)
-		out2 := gtdo.ImportPathElementsHtml(i.repoImportPath, i.importPath)
+		out1 := gtdo.ImportPathElementsHtml(i.repoImportPath, i.importPath)
+		out2 := previousHtmlTemplateApproach(i.repoImportPath, i.importPath)
 
 		if out1 != out2 {
-			panic(fmt.Errorf("out1 != out2\n%q\n%q\n", out1, out2))
+			log.Printf("out1 != out2\n%q\n%q\n", out1, out2)
 		}
 
 		fmt.Println(out1)
@@ -37,6 +40,8 @@ func ExampleImportPathElementsHtml() {
 	// rsc.io/pd&amp;f
 	// rsc.io/pdf
 	// <a href="/rsc.io/pdf">rsc.io/pdf</a>/pdfpasswd
+	// io
+	// <a href="/io">io</a>/ioutil
 }
 
 func previousHtmlTemplateApproach(repoImportPath, importPath string) template.HTML {

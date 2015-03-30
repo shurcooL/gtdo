@@ -33,7 +33,6 @@ import (
 	"github.com/shurcooL/go/gists/gist7480523"
 	"github.com/shurcooL/go/gopherjs_http"
 	"github.com/shurcooL/go/highlight_go"
-	"github.com/shurcooL/go/html_gen"
 	vcs2 "github.com/shurcooL/go/vcs"
 	"github.com/shurcooL/go/vfs_util"
 	"github.com/shurcooL/sanitized_anchor_name"
@@ -169,7 +168,8 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	bpkg, repoImportPath, fs, branches, defaultBranch, err := try(importPath, rev)
+	source, bpkg, repoImportPath, fs, branches, defaultBranch, err := try(importPath, rev)
+	log.Println("using source:", source)
 	if err != nil {
 		log.Println("try:", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -186,31 +186,27 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		Branches           template.HTML // Select menu for branches.
 		Tests              template.HTML // Checkbox for tests.
 	}{
-		Production: *productionFlag,
-		ImportPath: importPath,
-		Bpkg:       bpkg,
-		Tests:      checkbox.New(false, req.URL.Query(), testsQueryParameter),
+		Production:         *productionFlag,
+		ImportPath:         importPath,
+		ImportPathElements: ImportPathElementsHtml(repoImportPath, importPath),
+		Bpkg:               bpkg,
+		Tests:              checkbox.New(false, req.URL.Query(), testsQueryParameter),
 	}
 
-	// For now, don't try to find the subfolders for standard Go packages.
-	if bpkg != nil && bpkg.Goroot {
-		data.ImportPathElements = html_gen.Must(html_gen.RenderNodes(html_gen.Text(importPath)))
-	} else {
+	// Folders.
+	{
 		fis, err := fs.ReadDir("/virtual-go-workspace/src/" + importPath)
 		if err != nil {
 			log.Println("fs.ReadDir(importPath):", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-
 		for _, fi := range fis {
 			if !fi.IsDir() {
 				continue
 			}
 			data.Folders = append(data.Folders, fi.Name())
 		}
-
-		data.ImportPathElements = ImportPathElementsHtml(repoImportPath, importPath)
 	}
 
 	// Branches.
@@ -332,96 +328,43 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func tryLocal(importPath, rev string) (*build.Package, string, vfs.FileSystem, error) {
-	goPackage := gist7480523.GoPackageFromImportPath(importPath)
-	if goPackage == nil {
-		return nil, "", nil, errors.New("no local go package")
-	}
-
-	if goPackage.Bpkg.Goroot {
-		if rev != "" {
-			return nil, "", nil, errors.New("custom revision not yet supported for GOROOT packages")
-		}
-
-		return goPackage.Bpkg, "", vfs.OS(""), nil
-	}
-
-	// TESTING: Disable local for non-standard library packages.
-	return nil, "", nil, errors.New("TESTING: local for non-standard library packages is disabled")
-
-	/*goPackage.UpdateVcs()
-	if goPackage.Dir.Repo == nil {
-		return nil, "", nil, errors.New("no local vcs root path")
-	}
-	rootPath := goPackage.Dir.Repo.Vcs.RootPath()
-
-	repo, err := vcs.Open(goPackage.Dir.Repo.Vcs.Type().VcsType(), rootPath)
-	if err != nil {
-		return nil, "", nil, err
-	}
-
-	var commitId vcs.CommitID
-	if rev != "" {
-		commitId, err = repo.ResolveRevision(rev)
-	} else {
-		commitId, err = repo.ResolveBranch(goPackage.Dir.Repo.Vcs.GetDefaultBranch())
-	}
-	if err != nil {
-		return nil, "", nil, err
-	}
-
-	fs, err := repo.FileSystem(commitId)
-	if err != nil {
-		return nil, "", nil, err
-	}
-
-	// Verify it's an existing revision, etc.
-	_, err = fs.Stat(".")
-	if err != nil {
-		return nil, "", nil, err
-	}
-
-	// This adapter is needed to make fs.Open("/main.go") work, since the repo's vfs only allows fs.Open("main.go").
-	// See https://github.com/sourcegraph/go-vcs/issues/23.
-	fs = vfs_util.NewRootedFS(fs)
-
-	repoImportPath := gist7480523.GetRepoImportPath(rootPath, goPackage.Bpkg.SrcRoot)
-	fs = vfs_util.NewPrefixFS(fs, "/virtual-go-workspace/src/"+repoImportPath)
-
-	context := buildContextUsingFS(fs)
-	context.GOPATH = "/virtual-go-workspace"
-	bpkg, err := context.Import(importPath, "", 0)
-	return bpkg, repoImportPath, fs, err*/
-}
-
 // Try local first, if not, try remote, if not, clone/update remote and try one last time.
-func try(importPath, rev string) (*build.Package, string, vfs.FileSystem, []string, string, error) {
-	bpkg, repoImportPath, fs, err0 := tryLocal(importPath, rev)
-	fmt.Println("tryLocal err:", err0)
-	if err0 == nil {
-		return bpkg, repoImportPath, fs, nil, "", nil
-	}
-
-	// If local didn't work, try remote...
-	repo, repoImportPath, commitId, defaultBranch, err := repoFromRequest(importPath, rev)
-	if err != nil {
-		return nil, "", nil, nil, "", err
+func try(importPath, rev string) (source string, bpkg *build.Package, repoImportPath string, fs vfs.FileSystem, branchNames []string, defaultBranch string, err error) {
+	var repo vcs.Repository
+	var commitId vcs.CommitID
+	if bpkg, fs, err = tryLocalGoroot(importPath, rev); err == nil {
+		// Use local GOROOT package.
+		source = "goroot"
+		repoImportPath = strings.Split(importPath, "/")[0]
+		return source, bpkg, repoImportPath, fs, nil, "", nil
+	} else if repo, repoImportPath, commitId, defaultBranch, err = tryLocalGopath(importPath, rev); err == nil {
+		// Use local GOPATH package.
+		source = "gopath"
+	} else if repo, repoImportPath, commitId, defaultBranch, err = tryRemote(importPath, rev); err == nil { // If local didn't work, try remote...
+		// Use remote.
+		source = "remote"
+	} else {
+		return source, nil, "", nil, nil, "", err
 	}
 
 	branches, err := repo.Branches()
 	if err != nil {
-		return nil, "", nil, nil, "", err
+		return source, nil, "", nil, nil, "", err
 	}
 	// Sort branches?
-	branchNames := make([]string, len(branches))
+	branchNames = make([]string, len(branches))
 	for i, branch := range branches {
 		branchNames[i] = branch.Name
 	}
 
 	fs, err = repo.FileSystem(commitId)
 	if err != nil {
-		return nil, "", nil, nil, "", err
+		return source, nil, "", nil, nil, "", err
 	}
+
+	// This adapter is needed to make fs.Open("/main.go") work, since the local repo's vfs only allows fs.Open("main.go").
+	// See https://github.com/sourcegraph/go-vcs/issues/23.
+	fs = vfs_util.NewRootedFS(fs)
 
 	fs = vfs_util.NewPrefixFS(fs, "/virtual-go-workspace/src/"+repoImportPath)
 
@@ -429,13 +372,122 @@ func try(importPath, rev string) (*build.Package, string, vfs.FileSystem, []stri
 	context.GOPATH = "/virtual-go-workspace"
 	bpkg, err1 := context.Import(importPath, "", 0)
 	if err1 == nil {
-		return bpkg, repoImportPath, fs, branchNames, defaultBranch, nil
+		return source, bpkg, repoImportPath, fs, branchNames, defaultBranch, nil
 	}
 
-	return nil, repoImportPath, fs, branchNames, defaultBranch, nil
+	return source, nil, repoImportPath, fs, branchNames, defaultBranch, nil
 }
 
-func importPathToRepoGuess(importPath string) (repoImportPath string, cloneUrl *url.URL, vcsRepo vcs2.Vcs, err error) {
+func tryLocalGoroot(importPath, rev string) (bpkg *build.Package, fs vfs.FileSystem, err error) {
+	fs = vfs.OS(filepath.Join(build.Default.GOROOT, "src"))
+
+	// Verify it's an existing folder in GOROOT.
+	if _, err := fs.Stat(importPath); err != nil {
+		return nil, nil, errors.New("package is not in GOROOT")
+	}
+
+	fs = vfs_util.NewPrefixFS(fs, "/virtual-go-workspace/src")
+
+	context := buildContextUsingFS(fs)
+	context.GOROOT = "/virtual-go-workspace"
+	bpkg, err1 := context.Import(importPath, "", 0)
+	if err1 == nil {
+		return bpkg, fs, nil
+	}
+
+	return nil, fs, nil
+}
+
+func tryLocalGopath(importPath, rev string) (repo vcs.Repository, repoImportPath string, commitId vcs.CommitID, defaultBranch string, err error) {
+	if *productionFlag {
+		// Disable local for GOPATH packages in production.
+		return nil, "", "", "", errors.New("local for GOPATH packages is disabled")
+	}
+
+	goPackage := gist7480523.GoPackageFromImportPath(importPath)
+	if goPackage == nil {
+		return nil, "", "", "", errors.New("no local go package")
+	}
+
+	if goPackage.Bpkg.Goroot {
+		return nil, "", "", "", errors.New("package in GOROOT, but we're looking in GOPATH only")
+	}
+
+	goPackage.UpdateVcs()
+	if goPackage.Dir.Repo == nil {
+		return nil, "", "", "", errors.New("no local vcs root path")
+	}
+	rootPath := goPackage.Dir.Repo.Vcs.RootPath()
+	repoImportPath = gist7480523.GetRepoImportPath(rootPath, goPackage.Bpkg.SrcRoot)
+
+	repo, err = vcs.Open(goPackage.Dir.Repo.Vcs.Type().VcsType(), rootPath)
+	if err != nil {
+		return nil, "", "", "", err
+	}
+
+	if rev != "" {
+		commitId, err = repo.ResolveRevision(rev)
+	} else {
+		commitId, err = repo.ResolveBranch(goPackage.Dir.Repo.Vcs.GetDefaultBranch())
+	}
+	if err != nil {
+		return nil, "", "", "", err
+	}
+
+	fs, err := repo.FileSystem(commitId)
+	if err != nil {
+		return nil, "", "", "", err
+	}
+
+	// Verify it's an existing revision, etc.
+	_, err = fs.Stat(".")
+	if err != nil {
+		return nil, "", "", "", err
+	}
+
+	return repo, repoImportPath, commitId, goPackage.Dir.Repo.Vcs.GetDefaultBranch(), nil
+}
+
+func tryRemote(importPath, rev string) (repo vcs.Repository, repoImportPath string, commitId vcs.CommitID, defaultBranch string, err error) {
+	repoImportPath, cloneUrl, vcsRepo, err := importPathToRepoRoot(importPath)
+	if err != nil {
+		return nil, "", "", "", err
+	}
+
+	repo, err = sg.Repository(vcsRepo.Type().VcsType(), cloneUrl)
+	if err != nil {
+		return nil, "", "", "", err
+	}
+
+	if rev != "" {
+		commitId, err = repo.ResolveRevision(rev)
+	} else {
+		commitId, err = repo.ResolveBranch(vcsRepo.GetDefaultBranch())
+	}
+	if err != nil {
+		err1 := repo.(vcsclient.RepositoryCloneUpdater).CloneOrUpdate(vcs.RemoteOpts{})
+		fmt.Println("tryRemote: CloneOrUpdate:", err1)
+		if err1 != nil {
+			return nil, "", "", "", MultiError{err, err1}
+		}
+
+		if rev != "" {
+			commitId, err1 = repo.ResolveRevision(rev)
+		} else {
+			commitId, err1 = repo.ResolveBranch(vcsRepo.GetDefaultBranch())
+		}
+		if err1 != nil {
+			return nil, "", "", "", MultiError{err, err1}
+		}
+		fmt.Println("tryRemote: worked on SECOND try")
+	} else {
+		fmt.Println("tryRemote: worked on first try")
+	}
+
+	return repo, repoImportPath, commitId, vcsRepo.GetDefaultBranch(), nil
+}
+
+func importPathToRepoRoot(importPath string) (repoImportPath string, cloneUrl *url.URL, vcsRepo vcs2.Vcs, err error) {
 	rr, err := go_vcs.RepoRootForImportPath(importPath, true)
 	if err != nil {
 		return "", nil, nil, err
@@ -458,47 +510,6 @@ func importPathToRepoGuess(importPath string) (repoImportPath string, cloneUrl *
 	}
 
 	return repoImportPath, cloneUrl, vcsRepo, nil
-}
-
-func repoFromRequest(importPath, rev string) (repo vcs.Repository, repoImportPath string, commitId vcs.CommitID, defaultBranch string, err error) {
-	repoImportPath, cloneUrl, vcsRepo, err := importPathToRepoGuess(importPath)
-	if err != nil {
-		return nil, "", "", "", err
-	}
-
-	//goon.DumpExpr(repoImportPath, cloneUrl, vcsRepo, err)
-
-	repo, err = sg.Repository(vcsRepo.Type().VcsType(), cloneUrl)
-	if err != nil {
-		return nil, "", "", "", err
-	}
-
-	if rev != "" {
-		commitId, err = repo.ResolveRevision(rev)
-	} else {
-		commitId, err = repo.ResolveBranch(vcsRepo.GetDefaultBranch())
-	}
-	if err != nil {
-		err1 := repo.(vcsclient.RepositoryCloneUpdater).CloneOrUpdate(vcs.RemoteOpts{})
-		fmt.Println("repoFromRequest: CloneOrUpdate:", err1)
-		if err1 != nil {
-			return nil, "", "", "", MultiError{err, err1}
-		}
-
-		if rev != "" {
-			commitId, err1 = repo.ResolveRevision(rev)
-		} else {
-			commitId, err1 = repo.ResolveBranch(vcsRepo.GetDefaultBranch())
-		}
-		if err1 != nil {
-			return nil, "", "", "", MultiError{err, err1}
-		}
-		fmt.Println("repoFromRequest: worked on SECOND try")
-	} else {
-		fmt.Println("repoFromRequest: worked on first try")
-	}
-
-	return repo, repoImportPath, commitId, vcsRepo.GetDefaultBranch(), nil
 }
 
 func buildContextUsingFS(fs vfs.FileSystem) build.Context {
