@@ -275,7 +275,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 							if err != nil {
 								continue
 							}
-							anns = append(anns, annotateNode(fset, path, fmt.Sprintf(`<a href="%s" target="_blank">`, "/"+pathValue), `</a>`, 1))
+							anns = append(anns, annotateNode(fset, path, fmt.Sprintf(`<a href="%s">`, "/"+pathValue), `</a>`, 1))
 						}
 					case token.TYPE:
 						for _, spec := range d.Specs {
