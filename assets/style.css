@@ -30,6 +30,18 @@ span.spacing {
 	margin-right: 4px;
 }
 
+.ln {
+	float: left;
+	text-align: right;
+	width: 24px;
+	margin-right: 10px;
+	color: #b0b0b0;
+	cursor: hand;
+}
+.ln:hover {
+	color: #909090;
+}
+
 .anchor {
 	display: none;
 }
@@ -91,6 +103,7 @@ code {
 .highlight pre {
 	font-family: Menlo, monospace;
 	padding: 10px;
+	margin: 0;
 	background-color: #f2f2f2;
 }
 
