@@ -352,17 +352,22 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 				}
 				io.WriteString(&buf, `</pre></div>`)
 			case 3:
+				lines := bytes.Split(b, []byte("\n"))
 				fmt.Fprintf(&buf, `<div><h2 id="%s">%s<a class="anchor" onclick="MustScrollTo(event, &#34;\&#34;%s\&#34;&#34;);"><span class="anchor-icon octicon"></span></a></h2>`, sanitized_anchor_name.Create(goFile), html.EscapeString(goFile), sanitized_anchor_name.Create(goFile)) // HACK.
-				fmt.Fprintf(&buf, `<h5>%d lines</h5>`, countLines(src))
+				fmt.Fprintf(&buf, `<h5>%d lines</h5>`, len(lines)-1)
 				io.WriteString(&buf, `<div class="highlight highlight-Go"><pre style="float: left;">`)
-				for i := range bytes.Split(b, []byte("\n")) {
-					fmt.Fprintf(&buf, `<span class="ln" id="%s-L%d" onclick="LineNumber(event, this);">%d</span>`, sanitized_anchor_name.Create(goFile), i+1, i+1)
+				for i := range lines {
+					fmt.Fprintf(&buf, `<span class="ln" onclick="LineNumber(event, &#34;\&#34;%s-L%d\&#34;&#34;);">%d</span>`, sanitized_anchor_name.Create(goFile), i+1, i+1)
 					buf.WriteString("\n")
 				}
 				io.WriteString(&buf, `</pre><pre class="file">`)
-				for _, line := range bytes.Split(b, []byte("\n")) {
+				for i, line := range lines {
+					fmt.Fprintf(&buf, `<div id="%s-L%d">`, sanitized_anchor_name.Create(goFile), i+1)
 					buf.Write(line)
-					buf.WriteString("\n")
+					if len(line) == 0 {
+						buf.WriteString("\n")
+					}
+					buf.WriteString("</div>")
 				}
 				io.WriteString(&buf, `</pre></div></div>`)
 			}

@@ -33,25 +33,26 @@ func MustScrollTo(event dom.Event, targetId string) {
 	fmt.Println("MustScrollTo:", targetId)
 }
 
-func LineNumber(event dom.Event, object dom.HTMLElement) {
-	target := object.(dom.HTMLElement)
+// targetId must point to a valid target.
+func LineNumber(event dom.Event, targetId string) {
+	//target := document.GetElementByID(targetId).(dom.HTMLElement)
 
 	// dom.GetWindow().History().ReplaceState(nil, nil, href)
-	js.Global.Get("window").Get("history").Call("replaceState", nil, nil, "#"+target.ID())
+	js.Global.Get("window").Get("history").Call("replaceState", nil, nil, "#"+targetId)
 
 	//windowHalfHeight := dom.GetWindow().InnerHeight() * 2 / 5
 	//dom.GetWindow().ScrollTo(dom.GetWindow().ScrollX(), int(target.OffsetTop()+target.OffsetHeight())-windowHalfHeight)
 
-	processHash(target.ID(), true)
+	processHash(targetId, true)
 
-	fmt.Println("LineNumber:", target.ID())
+	fmt.Println("LineNumber:", targetId)
 }
 
 // valid is true iff the hash points to a valid target.
 func processHash(hash string, valid bool) {
 	// Clear everything.
-	for _, e := range document.GetElementsByClassName("file") {
-		e.(dom.HTMLElement).Style().RemoveProperty("background-color")
+	for _, e := range document.GetElementsByClassName("selected-line") {
+		e.Class().Remove("selected-line")
 	}
 
 	if !valid {
@@ -63,9 +64,12 @@ func processHash(hash string, valid bool) {
 
 	if line != 0 {
 		// DEBUG: Highlight entire file in red.
-		fileHeader := document.GetElementByID(file).(dom.HTMLElement)
+		/*fileHeader := document.GetElementByID(file).(dom.HTMLElement)
 		fileContent := fileHeader.ParentElement().GetElementsByClassName("file")[0].(dom.HTMLElement)
-		fileContent.Style().SetProperty("background-color", "red", "")
+		fileContent.Style().SetProperty("background-color", "red", "")*/
+
+		lineElement := document.GetElementByID(hash).(dom.HTMLElement)
+		lineElement.Class().Add("selected-line")
 	}
 }
 
