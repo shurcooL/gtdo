@@ -4,6 +4,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/gopherjs/gopherjs/js"
@@ -17,11 +18,9 @@ import (
 
 var document = dom.GetWindow().Document().(dom.HTMLDocument)
 
-func ScrollTo(event dom.Event, targetId string) {
-	target, ok := document.GetElementByID(targetId).(dom.HTMLElement)
-	if !ok {
-		return
-	}
+// targetId must point to a valid target.
+func MustScrollTo(event dom.Event, targetId string) {
+	target := document.GetElementByID(targetId).(dom.HTMLElement)
 
 	// dom.GetWindow().History().ReplaceState(nil, nil, href)
 	js.Global.Get("window").Get("history").Call("replaceState", nil, nil, "#"+targetId)
@@ -29,7 +28,9 @@ func ScrollTo(event dom.Event, targetId string) {
 	windowHalfHeight := dom.GetWindow().InnerHeight() * 2 / 5
 	dom.GetWindow().ScrollTo(dom.GetWindow().ScrollX(), int(target.OffsetTop()+target.OffsetHeight())-windowHalfHeight)
 
-	fmt.Println("ScrollTo:", targetId)
+	processHash(targetId, true)
+
+	fmt.Println("MustScrollTo:", targetId)
 }
 
 func LineNumber(event dom.Event, object dom.HTMLElement) {
@@ -41,11 +42,58 @@ func LineNumber(event dom.Event, object dom.HTMLElement) {
 	//windowHalfHeight := dom.GetWindow().InnerHeight() * 2 / 5
 	//dom.GetWindow().ScrollTo(dom.GetWindow().ScrollX(), int(target.OffsetTop()+target.OffsetHeight())-windowHalfHeight)
 
+	processHash(target.ID(), true)
+
 	fmt.Println("LineNumber:", target.ID())
 }
 
+// valid is true iff the hash points to a valid target.
+func processHash(hash string, valid bool) {
+	// Clear everything.
+	for _, e := range document.GetElementsByClassName("file") {
+		e.(dom.HTMLElement).Style().RemoveProperty("background-color")
+	}
+
+	if !valid {
+		return
+	}
+
+	file, line := parseHash(hash)
+	_, _ = file, line
+
+	if line != 0 {
+		// DEBUG: Highlight entire file in red.
+		fileHeader := document.GetElementByID(file).(dom.HTMLElement)
+		fileContent := fileHeader.ParentElement().GetElementsByClassName("file")[0].(dom.HTMLElement)
+		fileContent.Style().SetProperty("background-color", "red", "")
+	}
+}
+
+func parseHash(hash string) (file string, line int) {
+	parts := strings.Split(hash, "-")
+	if file, line, ok := tryParseFileLine(parts); ok {
+		return file, line
+	}
+	return hash, 0
+}
+
+func tryParseFileLine(parts []string) (file string, line int, ok bool) {
+	if len(parts) <= 1 {
+		return "", 0, false
+	}
+	lastPart := parts[len(parts)-1]
+	if len(lastPart) < 2 || lastPart[0] != 'L' {
+		return "", 0, false
+	}
+	line, err := strconv.Atoi(lastPart[1:])
+	if err != nil {
+		return "", 0, false
+	}
+	return strings.Join(parts[:len(parts)-1], "-"), line, true
+}
+
 func init() {
-	js.Global.Set("ScrollTo", jsutil.Wrap(ScrollTo))
+	js.Global.Set("MustScrollTo", jsutil.Wrap(MustScrollTo))
 	js.Global.Set("LineNumber", jsutil.Wrap(LineNumber))
 
 	document.AddEventListener("DOMContentLoaded", false, func(_ dom.Event) {
@@ -55,14 +103,15 @@ func init() {
 
 			// Scroll to hash target.
 			hash := strings.TrimPrefix(dom.GetWindow().Location().Hash, "#")
-			if target, ok := document.GetElementByID(hash).(dom.HTMLElement); ok {
+			target, ok := document.GetElementByID(hash).(dom.HTMLElement)
+			if ok {
 				windowHalfHeight := dom.GetWindow().InnerHeight() * 2 / 5
 				dom.GetWindow().ScrollTo(dom.GetWindow().ScrollX(), int(target.OffsetTop()+target.OffsetHeight())-windowHalfHeight)
-
-				fmt.Println("DOMContentLoaded:", hash, target.OffsetTop())
 			}
 
-			//fmt.Println("DOMContentLoaded:", hash, target.OffsetTop())
+			processHash(hash, ok)
+
+			fmt.Println("DOMContentLoaded:", hash)
 		}()
 	})
 
@@ -72,10 +121,13 @@ func init() {
 
 		// Scroll to hash target.
 		hash := strings.TrimPrefix(dom.GetWindow().Location().Hash, "#")
-		if target, ok := document.GetElementByID(hash).(dom.HTMLElement); ok {
+		target, ok := document.GetElementByID(hash).(dom.HTMLElement)
+		if ok {
 			windowHalfHeight := dom.GetWindow().InnerHeight() * 2 / 5
 			dom.GetWindow().ScrollTo(dom.GetWindow().ScrollX(), int(target.OffsetTop()+target.OffsetHeight())-windowHalfHeight)
 		}
+
+		processHash(hash, ok)
 
 		fmt.Println("hash changed:", hash)
 	})
