@@ -85,6 +85,13 @@ code {
 	font-size: 85%;
 }
 
+div.highlight {
+	position: relative;
+}
+pre.file {
+	background: none !important;
+}
+
 .highlight .selected-line {
 	background-color: rgb(243, 136, 73);
 }

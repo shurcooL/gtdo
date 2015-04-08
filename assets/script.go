@@ -35,6 +35,12 @@ func MustScrollTo(event dom.Event, targetId string) {
 
 // targetId must point to a valid target.
 func LineNumber(event dom.Event, targetId string) {
+	event.PreventDefault()
+	me := event.(*dom.MouseEvent)
+	if me.ShiftKey {
+		return
+	}
+
 	//target := document.GetElementByID(targetId).(dom.HTMLElement)
 
 	// dom.GetWindow().History().ReplaceState(nil, nil, href)
@@ -54,35 +60,55 @@ func processHash(hash string, valid bool) {
 	for _, e := range document.GetElementsByClassName("selected-line") {
 		e.Class().Remove("selected-line")
 	}
+	for _, e := range document.GetElementsByClassName("background") {
+		e.(dom.HTMLElement).Style().SetProperty("display", "none", "")
+	}
 
 	if !valid {
 		return
 	}
 
-	file, line := parseHash(hash)
-	_, _ = file, line
+	file, start, end := parseHash(hash)
+	_, _, _ = file, start, end
 
-	if line != 0 {
+	if start != 0 {
 		// DEBUG: Highlight entire file in red.
 		/*fileHeader := document.GetElementByID(file).(dom.HTMLElement)
 		fileContent := fileHeader.ParentElement().GetElementsByClassName("file")[0].(dom.HTMLElement)
 		fileContent.Style().SetProperty("background-color", "red", "")*/
 
-		lineElement := document.GetElementByID(hash).(dom.HTMLElement)
+		lineElement := document.GetElementByID(fmt.Sprintf("%s-L%d", file, start)).(dom.HTMLElement)
 		lineElement.Class().Add("selected-line")
+
+		var endElement dom.HTMLElement
+		if end == start {
+			endElement = lineElement
+		} else {
+			endElement = document.GetElementByID(fmt.Sprintf("%s-L%d", file, end)).(dom.HTMLElement)
+		}
+
+		fileHeader := document.GetElementByID(file).(dom.HTMLElement)
+		fileBackground := fileHeader.ParentElement().GetElementsByClassName("background")[0].(dom.HTMLElement)
+		fileBackground.Style().SetProperty("display", "initial", "")
+		fileBackground.Style().SetProperty("top", fmt.Sprintf("%vpx", lineElement.OffsetTop()), "")
+		fileBackground.Style().SetProperty("height", fmt.Sprintf("%vpx", endElement.OffsetTop()-lineElement.OffsetTop()+endElement.OffsetHeight()), "")
 	}
 }
 
-func parseHash(hash string) (file string, line int) {
+func parseHash(hash string) (file string, start, end int) {
 	parts := strings.Split(hash, "-")
-	if file, line, ok := tryParseFileLine(parts); ok {
-		return file, line
+	if file, start, end, ok := tryParseFileLineRange(parts); ok {
+		fmt.Println("tryParseFileLineRange:", file, start, end, ok)
+		return file, start, end
+	} else if file, line, ok := tryParseFileLine(parts); ok {
+		return file, line, line
+	} else {
+		return hash, 0, 0
 	}
-	return hash, 0
 }
 
 func tryParseFileLine(parts []string) (file string, line int, ok bool) {
-	if len(parts) <= 1 {
+	if len(parts) < 2 {
 		return "", 0, false
 	}
 	lastPart := parts[len(parts)-1]
@@ -96,44 +122,75 @@ func tryParseFileLine(parts []string) (file string, line int, ok bool) {
 	return strings.Join(parts[:len(parts)-1], "-"), line, true
 }
 
+func tryParseFileLineRange(parts []string) (file string, start, end int, ok bool) {
+	if len(parts) < 3 {
+		return "", 0, 0, false
+	}
+	{
+		secondLastPart := parts[len(parts)-2]
+		if len(secondLastPart) < 2 || secondLastPart[0] != 'L' {
+			return "", 0, 0, false
+		}
+		var err error
+		start, err = strconv.Atoi(secondLastPart[1:])
+		if err != nil {
+			return "", 0, 0, false
+		}
+	}
+	{
+		lastPart := parts[len(parts)-1]
+		if len(lastPart) < 1 {
+			return "", 0, 0, false
+		}
+		var err error
+		end, err = strconv.Atoi(lastPart)
+		if err != nil {
+			return "", 0, 0, false
+		}
+	}
+	return strings.Join(parts[:len(parts)-2], "-"), start, end, true
+}
+
 func init() {
 	js.Global.Set("MustScrollTo", jsutil.Wrap(MustScrollTo))
 	js.Global.Set("LineNumber", jsutil.Wrap(LineNumber))
 
+	processHashSet := func() {
+		// Scroll to hash target.
+		hash := strings.TrimPrefix(dom.GetWindow().Location().Hash, "#")
+		parts := strings.Split(hash, "-") // TODO: Factor out.
+		var targetId string
+		if file, start, _, ok := tryParseFileLineRange(parts); ok {
+			targetId = fmt.Sprintf("%s-L%d", file, start)
+		} else {
+			targetId = hash
+		}
+		target, ok := document.GetElementByID(targetId).(dom.HTMLElement)
+		if ok {
+			windowHalfHeight := dom.GetWindow().InnerHeight() * 2 / 5
+			// TODO: target.OffsetTop() is relative to file now, take that into account.
+			dom.GetWindow().ScrollTo(dom.GetWindow().ScrollX(), int(target.OffsetTop()+target.OffsetHeight())-windowHalfHeight)
+		}
+
+		processHash(hash, ok)
+	}
 	document.AddEventListener("DOMContentLoaded", false, func(_ dom.Event) {
 		// This needs to be in a goroutine or else it "happens too early". See if there's a better event than DOMContentLoaded.
 		go func() {
 			//time.Sleep(
 
-			// Scroll to hash target.
-			hash := strings.TrimPrefix(dom.GetWindow().Location().Hash, "#")
-			target, ok := document.GetElementByID(hash).(dom.HTMLElement)
-			if ok {
-				windowHalfHeight := dom.GetWindow().InnerHeight() * 2 / 5
-				dom.GetWindow().ScrollTo(dom.GetWindow().ScrollX(), int(target.OffsetTop()+target.OffsetHeight())-windowHalfHeight)
-			}
+			processHashSet()
 
-			processHash(hash, ok)
-
-			fmt.Println("DOMContentLoaded:", hash)
+			fmt.Println("DOMContentLoaded:", strings.TrimPrefix(dom.GetWindow().Location().Hash, "#"))
 		}()
 	})
-
 	// Start watching for hashchange events.
 	dom.GetWindow().AddEventListener("hashchange", false, func(event dom.Event) {
 		event.PreventDefault()
 
-		// Scroll to hash target.
-		hash := strings.TrimPrefix(dom.GetWindow().Location().Hash, "#")
-		target, ok := document.GetElementByID(hash).(dom.HTMLElement)
-		if ok {
-			windowHalfHeight := dom.GetWindow().InnerHeight() * 2 / 5
-			dom.GetWindow().ScrollTo(dom.GetWindow().ScrollX(), int(target.OffsetTop()+target.OffsetHeight())-windowHalfHeight)
-		}
+		processHashSet()
 
-		processHash(hash, ok)
-
-		fmt.Println("hash changed:", hash)
+		fmt.Println("hash changed:", strings.TrimPrefix(dom.GetWindow().Location().Hash, "#"))
 	})
 }
 

@@ -26,6 +26,7 @@ import (
 	"go/parser"
 	"go/token"
 
+	"github.com/bradfitz/iter"
 	"github.com/shurcooL/frontend/checkbox"
 	"github.com/shurcooL/frontend/select_menu"
 	"github.com/shurcooL/go/gists/gist5639599"
@@ -319,7 +320,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 				return bytes.Count(src, []byte("\n"))
 			}
 
-			switch 3 {
+			switch 4 {
 			case 0:
 				fmt.Fprintf(&buf, `<h2 id="%s">%s<a class="anchor" href="#%s"><span class="anchor-icon octicon"></span></a></h2>`, sanitized_anchor_name.Create(goFile), html.EscapeString(goFile), sanitized_anchor_name.Create(goFile))
 				fmt.Fprintf(&buf, `<h5>%d lines</h5>`, countLines(src))
@@ -369,6 +370,20 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 					}
 					buf.WriteString("</div>")
 				}
+				io.WriteString(&buf, `</pre></div></div>`)
+			case 4:
+				lines := bytes.Split(b, []byte("\n"))
+				fmt.Fprintf(&buf, `<div><h2 id="%s">%s<a class="anchor" onclick="MustScrollTo(event, &#34;\&#34;%s\&#34;&#34;);"><span class="anchor-icon octicon"></span></a></h2>`, sanitized_anchor_name.Create(goFile), html.EscapeString(goFile), sanitized_anchor_name.Create(goFile)) // HACK.
+				fmt.Fprintf(&buf, `<h5>%d lines</h5>`, len(lines)-1)
+				io.WriteString(&buf, `<div class="highlight highlight-Go">`)
+				io.WriteString(&buf, `<div class="background" style="position: absolute; z-index: -1; background-color: orange; width: 100%;"></div>`)
+				io.WriteString(&buf, `<pre style="float: left;">`)
+				for i := range iter.N(len(lines) - 1) {
+					fmt.Fprintf(&buf, `<span id="%s-L%d" class="ln" onclick="LineNumber(event, &#34;\&#34;%s-L%d\&#34;&#34;);">%d</span>`, sanitized_anchor_name.Create(goFile), i+1, sanitized_anchor_name.Create(goFile), i+1, i+1)
+					buf.WriteString("\n")
+				}
+				io.WriteString(&buf, `</pre><pre class="file">`)
+				buf.Write(b)
 				io.WriteString(&buf, `</pre></div></div>`)
 			}
 		}
