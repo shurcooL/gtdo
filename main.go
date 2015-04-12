@@ -351,11 +351,11 @@ func try(importPath, rev string) (source string, bpkg *build.Package, repoImport
 	if err != nil {
 		return source, nil, "", nil, nil, "", err
 	}
-	// Sort branches?
 	branchNames = make([]string, len(branches))
 	for i, branch := range branches {
 		branchNames[i] = branch.Name
 	}
+	sort.Strings(branchNames)
 
 	fs, err = repo.FileSystem(commitId)
 	if err != nil {
