@@ -35,7 +35,6 @@ func MustScrollTo(event dom.Event, targetId string) {
 
 // targetId must point to a valid target.
 func LineNumber(event dom.Event, targetId string) {
-	event.PreventDefault()
 	me := event.(*dom.MouseEvent)
 	if me.ShiftKey {
 		return

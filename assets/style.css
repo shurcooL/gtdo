@@ -37,6 +37,7 @@ span.spacing {
 	margin-right: 10px;
 	color: #b0b0b0;
 	cursor: hand;
+	-webkit-user-select: none;
 }
 .ln:hover {
 	color: #909090;
