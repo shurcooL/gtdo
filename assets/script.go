@@ -139,11 +139,11 @@ func tryParseFileLineRange(parts []string) (file string, start, end int, ok bool
 	}
 	{
 		lastPart := parts[len(parts)-1]
-		if len(lastPart) < 1 {
+		if len(lastPart) < 2 || lastPart[0] != 'L' {
 			return "", 0, 0, false
 		}
 		var err error
-		end, err = strconv.Atoi(lastPart)
+		end, err = strconv.Atoi(lastPart[1:])
 		if err != nil {
 			return "", 0, 0, false
 		}
