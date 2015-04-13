@@ -150,6 +150,15 @@ func tryParseFileLineRange(parts []string) (file string, start, end int, ok bool
 	return strings.Join(parts[:len(parts)-2], "-"), start, end, true
 }
 
+// rootOffsetTop returns the offset top of element e relative to root element.
+func rootOffsetTop(e dom.HTMLElement) float64 {
+	var rootOffsetTop float64
+	for ; e != nil; e = e.OffsetParent() {
+		rootOffsetTop += e.OffsetTop()
+	}
+	return rootOffsetTop
+}
+
 func init() {
 	js.Global.Set("MustScrollTo", jsutil.Wrap(MustScrollTo))
 	js.Global.Set("LineNumber", jsutil.Wrap(LineNumber))
@@ -167,8 +176,7 @@ func init() {
 		target, ok := document.GetElementByID(targetId).(dom.HTMLElement)
 		if ok {
 			windowHalfHeight := dom.GetWindow().InnerHeight() * 2 / 5
-			// TODO: target.OffsetTop() is relative to file now, take that into account.
-			dom.GetWindow().ScrollTo(dom.GetWindow().ScrollX(), int(target.OffsetTop()+target.OffsetHeight())-windowHalfHeight)
+			dom.GetWindow().ScrollTo(dom.GetWindow().ScrollX(), int(rootOffsetTop(target)+target.OffsetHeight())-windowHalfHeight)
 		}
 
 		processHash(hash, ok)
