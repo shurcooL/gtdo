@@ -2,6 +2,7 @@ package main
 
 import (
 	"html/template"
+	"net/url"
 	"path"
 	"strings"
 
@@ -9,7 +10,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-func ImportPathElementsHtml(repoImportPath, importPath string) template.HTML {
+func ImportPathElementsHtml(repoImportPath, importPath, rawQuery string) template.HTML {
 	// Elements of importPath, first element being repoImportPath.
 	// E.g., {"github.com/user/repo", "subpath", "package"}.
 	elements := []string{repoImportPath}
@@ -25,7 +26,11 @@ func ImportPathElementsHtml(repoImportPath, importPath string) template.HTML {
 
 		// Don't link last importPath element, since it's the current page.
 		if path != importPath {
-			ns = append(ns, html_gen.A(element, template.URL("/"+path)))
+			url := url.URL{
+				Path:     "/" + path,
+				RawQuery: rawQuery,
+			}
+			ns = append(ns, html_gen.A(element, template.URL(url.String())))
 		} else {
 			ns = append(ns, html_gen.Text(element))
 		}

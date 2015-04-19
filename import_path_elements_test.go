@@ -25,7 +25,7 @@ func ExampleImportPathElementsHtml() {
 	}
 
 	for _, i := range inputs {
-		out1 := gtdo.ImportPathElementsHtml(i.repoImportPath, i.importPath)
+		out1 := gtdo.ImportPathElementsHtml(i.repoImportPath, i.importPath, "")
 		out2 := previousHtmlTemplateApproach(i.repoImportPath, i.importPath)
 
 		if out1 != out2 {

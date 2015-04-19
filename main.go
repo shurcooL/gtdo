@@ -188,7 +188,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	}{
 		Production:         *productionFlag,
 		ImportPath:         importPath,
-		ImportPathElements: ImportPathElementsHtml(repoImportPath, importPath),
+		ImportPathElements: ImportPathElementsHtml(repoImportPath, importPath, req.URL.RawQuery),
 		Bpkg:               bpkg,
 		Tests:              checkbox.New(false, req.URL.Query(), testsQueryParameter),
 	}
@@ -275,7 +275,16 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 							if err != nil {
 								continue
 							}
-							anns = append(anns, annotateNode(fset, path, fmt.Sprintf(`<a href="%s">`, "/"+pathValue), `</a>`, 1))
+							values := req.URL.Query()
+							// If it crosses the repository boundary, do not persist the revision.
+							if !packageInsideRepo(pathValue, repoImportPath) {
+								delete(values, revisionQueryParameter)
+							}
+							url := url.URL{
+								Path:     "/" + pathValue,
+								RawQuery: values.Encode(),
+							}
+							anns = append(anns, annotateNode(fset, path, fmt.Sprintf(`<a href="%s">`, url.String()), `</a>`, 1))
 						}
 					case token.TYPE:
 						for _, spec := range d.Specs {
@@ -545,6 +554,11 @@ func buildContextUsingFS(fs vfs.FileSystem) build.Context {
 	}
 
 	return context
+}
+
+// packageInsideRepo returns true iff importPath package is inside repository repoImportPath.
+func packageInsideRepo(importPath, repoImportPath string) bool {
+	return strings.HasPrefix(importPath, repoImportPath)
 }
 
 // ---
