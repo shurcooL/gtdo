@@ -178,6 +178,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 
 	data := struct {
 		Production         bool
+		FullQuery          string // Either blank, or "?query".
 		ImportPath         string
 		ImportPathElements template.HTML // Import path with linkified elements.
 		DirExists          bool
@@ -188,6 +189,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		Tests              template.HTML // Checkbox for tests.
 	}{
 		Production:         *productionFlag,
+		FullQuery:          fullQuery(req.URL.RawQuery),
 		ImportPath:         importPath,
 		ImportPathElements: ImportPathElementsHtml(repoImportPath, importPath, req.URL.RawQuery),
 		DirExists:          fs != nil,
@@ -567,6 +569,14 @@ func buildContextUsingFS(fs vfs.FileSystem) build.Context {
 // packageInsideRepo returns true iff importPath package is inside repository repoImportPath.
 func packageInsideRepo(importPath, repoImportPath string) bool {
 	return strings.HasPrefix(importPath, repoImportPath)
+}
+
+// fullQuery returns rawQuery with a "?" prefix if rawQuery is non-empty.
+func fullQuery(rawQuery string) string {
+	if rawQuery == "" {
+		return ""
+	}
+	return "?" + rawQuery
 }
 
 // ---
