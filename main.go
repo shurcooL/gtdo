@@ -149,13 +149,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	importPath := req.URL.Path[1:]
-	rev := req.URL.Query().Get(revisionQueryParameter)
-	_, includeTestFiles := req.URL.Query()[testsQueryParameter]
-
-	log.Printf("req: importPath=%q rev=%q.\n", importPath, rev)
-
-	if importPath == "" {
+	if req.URL.Path == "/" {
 		recentlyViewed.lock.RLock()
 		recentlyViewed.Production = *productionFlag
 		err := t.ExecuteTemplate(w, "index.html.tmpl", recentlyViewed)
@@ -167,6 +161,12 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		}
 		return
 	}
+
+	importPath := req.URL.Path[1:]
+	rev := req.URL.Query().Get(revisionQueryParameter)
+	_, includeTestFiles := req.URL.Query()[testsQueryParameter]
+
+	log.Printf("req: importPath=%q rev=%q.\n", importPath, rev)
 
 	source, bpkg, repoImportPath, fs, branches, defaultBranch, err := try(importPath, rev)
 	log.Println("using source:", source)
