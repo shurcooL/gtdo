@@ -180,6 +180,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		Production         bool
 		ImportPath         string
 		ImportPathElements template.HTML // Import path with linkified elements.
+		DirExists          bool
 		Bpkg               *build.Package
 		Folders            []string
 		Files              template.HTML
@@ -189,12 +190,13 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		Production:         *productionFlag,
 		ImportPath:         importPath,
 		ImportPathElements: ImportPathElementsHtml(repoImportPath, importPath, req.URL.RawQuery),
+		DirExists:          fs != nil,
 		Bpkg:               bpkg,
 		Tests:              checkbox.New(false, req.URL.Query(), testsQueryParameter),
 	}
 
 	// Folders.
-	{
+	if fs != nil {
 		fis, err := fs.ReadDir("/virtual-go-workspace/src/" + importPath)
 		if err != nil {
 			log.Println("fs.ReadDir(importPath):", err)
@@ -377,14 +379,19 @@ func try(importPath, rev string) (source string, bpkg *build.Package, repoImport
 
 	fs = vfs_util.NewPrefixFS(fs, "/virtual-go-workspace/src/"+repoImportPath)
 
-	context := buildContextUsingFS(fs)
-	context.GOPATH = "/virtual-go-workspace"
-	bpkg, err1 := context.Import(importPath, "", 0)
-	if err1 == nil {
-		return source, bpkg, repoImportPath, fs, branchNames, defaultBranch, nil
+	// Verify the import path is an existing subdirectory (it may exist on one branch, but not another).
+	if _, err := fs.Stat("/virtual-go-workspace/src/" + importPath); err != nil {
+		return source, nil, repoImportPath, nil, branchNames, defaultBranch, nil
 	}
 
-	return source, nil, repoImportPath, fs, branchNames, defaultBranch, nil
+	context := buildContextUsingFS(fs)
+	context.GOPATH = "/virtual-go-workspace"
+	bpkg, err = context.Import(importPath, "", 0)
+	if err != nil {
+		return source, nil, repoImportPath, fs, branchNames, defaultBranch, nil
+	}
+
+	return source, bpkg, repoImportPath, fs, branchNames, defaultBranch, nil
 }
 
 func tryLocalGoroot(importPath, rev string) (bpkg *build.Package, fs vfs.FileSystem, err error) {
@@ -443,15 +450,16 @@ func tryLocalGopath(importPath, rev string) (repo vcs.Repository, repoImportPath
 		return nil, "", "", "", err
 	}
 
-	fs, err := repo.FileSystem(commitId)
-	if err != nil {
-		return nil, "", "", "", err
-	}
-
 	// Verify it's an existing revision, etc.
-	_, err = fs.Stat(".")
-	if err != nil {
-		return nil, "", "", "", err
+	{
+		fs, err := repo.FileSystem(commitId)
+		if err != nil {
+			return nil, "", "", "", err
+		}
+
+		if _, err := fs.Stat("."); err != nil {
+			return nil, "", "", "", err
+		}
 	}
 
 	return repo, repoImportPath, commitId, goPackage.Dir.Repo.Vcs.GetDefaultBranch(), nil

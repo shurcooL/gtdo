@@ -23,6 +23,9 @@
 						{{/*<h1>{{if .Bpkg.IsCommand}}Command{{else}}Package{{end}} {{.Bpkg.Name}}</h1>*/}}
 						{{.Files}}
 					{{end}}
+					{{if not .DirExists}}
+						<div style="margin-top: 20px;"><i>(this subdirectory doesn't exist, maybe it exists on another branch?)</i></div>
+					{{end}}
 				</div>
 			</div>
 			{{template "footer"}}
