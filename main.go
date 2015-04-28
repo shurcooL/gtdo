@@ -382,7 +382,7 @@ func try(importPath, rev string) (source string, bpkg *build.Package, repoImport
 	fs = vfs_util.NewPrefixFS(fs, "/virtual-go-workspace/src/"+repoImportPath)
 
 	// Verify the import path is an existing subdirectory (it may exist on one branch, but not another).
-	if _, err := fs.Stat("/virtual-go-workspace/src/" + importPath); err != nil {
+	if fi, err := fs.Stat("/virtual-go-workspace/src/" + importPath); !(err == nil && fi.IsDir()) {
 		return source, nil, repoImportPath, nil, branchNames, defaultBranch, nil
 	}
 
@@ -400,7 +400,7 @@ func tryLocalGoroot(importPath, rev string) (bpkg *build.Package, fs vfs.FileSys
 	fs = vfs.OS(filepath.Join(build.Default.GOROOT, "src"))
 
 	// Verify it's an existing folder in GOROOT.
-	if _, err := fs.Stat(importPath); err != nil {
+	if fi, err := fs.Stat(importPath); !(err == nil && fi.IsDir()) {
 		return nil, nil, errors.New("package is not in GOROOT")
 	}
 
@@ -459,7 +459,7 @@ func tryLocalGopath(importPath, rev string) (repo vcs.Repository, repoImportPath
 			return nil, "", "", "", err
 		}
 
-		if _, err := fs.Stat("."); err != nil {
+		if fi, err := fs.Stat("."); !(err == nil && fi.IsDir()) {
 			return nil, "", "", "", err
 		}
 	}
