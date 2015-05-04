@@ -26,7 +26,6 @@ import (
 	"go/parser"
 	"go/token"
 
-	"github.com/bradfitz/iter"
 	"github.com/shurcooL/frontend/checkbox"
 	"github.com/shurcooL/frontend/select_menu"
 	"github.com/shurcooL/go/gists/gist5639599"
@@ -315,14 +314,14 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 				panic(err)
 			}
 
-			lines := bytes.Split(b, []byte("\n"))
+			lineCount := bytes.Count(src, []byte("\n"))
 			fmt.Fprintf(&buf, `<div><h2 id="%s">%s<a class="anchor" onclick="MustScrollTo(event, &#34;\&#34;%s\&#34;&#34;);"><span class="anchor-icon octicon"></span></a></h2>`, sanitized_anchor_name.Create(goFile), html.EscapeString(goFile), sanitized_anchor_name.Create(goFile)) // HACK.
 			io.WriteString(&buf, `<div class="highlight highlight-Go">`)
 			io.WriteString(&buf, `<div style="position: absolute; z-index: -2; background-color: #f2f2f2; width: 100%; height: 100%;"></div>`)
 			io.WriteString(&buf, `<div class="background" style="position: absolute; z-index: -1; background-color: rgb(236, 217, 145); width: 100%;"></div>`)
 			io.WriteString(&buf, `<pre style="float: left;">`)
-			for i := range iter.N(len(lines) - 1) {
-				fmt.Fprintf(&buf, `<span id="%s-L%d" class="ln" onclick="LineNumber(event, &#34;\&#34;%s-L%d\&#34;&#34;);">%d</span>`, sanitized_anchor_name.Create(goFile), i+1, sanitized_anchor_name.Create(goFile), i+1, i+1)
+			for i := 1; i <= lineCount; i++ {
+				fmt.Fprintf(&buf, `<span id="%s-L%d" class="ln" onclick="LineNumber(event, &#34;\&#34;%s-L%d\&#34;&#34;);">%d</span>`, sanitized_anchor_name.Create(goFile), i, sanitized_anchor_name.Create(goFile), i, i)
 				buf.WriteString("\n")
 			}
 			io.WriteString(&buf, `</pre><pre class="file">`)
