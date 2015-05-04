@@ -39,6 +39,7 @@
 						<input id="import-path" placeholder="import/path" autofocus onkeydown="if (event.keyCode != 13) { return; }; window.location = &quot;/&quot; + document.getElementById(&quot;import-path&quot;).value;">
 						<button onclick="window.location = &quot;/&quot; + document.getElementById(&quot;import-path&quot;).value;">Go</button>
 					</span>
+					<p>(2 minute screencast: <a href="https://www.youtube.com/watch?v=twjxYEubmzs" target="_blank">youtube.com/watch?v=twjxYEubmzs</a>)</p>
 					<h3>Recently Viewed Packages</h3>
 					<ul>{{range .Packages}}<li><a href="/{{.}}"><code>{{.}}</code></a></li>{{end}}</ul>
 				</article>
