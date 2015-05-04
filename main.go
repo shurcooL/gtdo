@@ -239,7 +239,10 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		sort.Strings(goFiles)
 
 		for _, goFile := range goFiles {
-			fset := token.NewFileSet()
+			fi, err := fs.Stat(path.Join(bpkg.Dir, goFile))
+			if err != nil {
+				log.Panicln(fs.String(), "fs.Stat:", path.Join(bpkg.Dir, goFile), err)
+			}
 			file, err := fs.Open(path.Join(bpkg.Dir, goFile))
 			if err != nil {
 				log.Panicln(fs.String(), "fs.Open:", path.Join(bpkg.Dir, goFile), err)
@@ -252,66 +255,77 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 			if err != nil {
 				panic(err)
 			}
-			fileAst, err := parser.ParseFile(fset, filepath.Join(bpkg.Dir, goFile), src, parser.ParseComments)
-			if err != nil {
-				panic(err)
-			}
 
-			anns, err := highlight_go.Annotate(src, syntaxhighlight.HTMLAnnotator(syntaxhighlight.DefaultHTMLConfig))
+			const maxAnnotateSize = 1000 * 1000
 
-			for _, decl := range fileAst.Decls {
-				switch d := decl.(type) {
-				case *ast.FuncDecl:
-					name := d.Name.String()
-					if d.Recv != nil {
-						name = strings.TrimPrefix(gist5639599.SprintAstBare(d.Recv.List[0].Type), "*") + "." + name
-						anns = append(anns, annotateNodes(fset, d.Recv, d.Name, fmt.Sprintf(`<h3 id="%s">`, name), `</h3>`, 1))
-					} else {
-						anns = append(anns, annotateNode(fset, d.Name, fmt.Sprintf(`<h3 id="%s">`, name), `</h3>`, 1))
-					}
-					anns = append(anns, annotateNode(fset, d.Name, fmt.Sprintf(`<a href="%s">`, "#"+name), `</a>`, 2))
-				case *ast.GenDecl:
-					switch d.Tok {
-					case token.IMPORT:
-						for _, imp := range d.Specs {
-							path := imp.(*ast.ImportSpec).Path
-							pathValue, err := strconv.Unquote(path.Value)
-							if err != nil {
-								continue
-							}
-							values := req.URL.Query()
-							// If it crosses the repository boundary, do not persist the revision.
-							if !packageInsideRepo(pathValue, repoImportPath) {
-								delete(values, revisionQueryParameter)
-							}
-							url := url.URL{
-								Path:     "/" + pathValue,
-								RawQuery: values.Encode(),
-							}
-							anns = append(anns, annotateNode(fset, path, fmt.Sprintf(`<a href="%s">`, url.String()), `</a>`, 1))
+			var annSrc []byte
+			switch {
+			case fi.Size() < maxAnnotateSize:
+				fset := token.NewFileSet()
+				fileAst, err := parser.ParseFile(fset, filepath.Join(bpkg.Dir, goFile), src, parser.ParseComments)
+				if err != nil {
+					panic(err)
+				}
+
+				anns, err := highlight_go.Annotate(src, syntaxhighlight.HTMLAnnotator(syntaxhighlight.DefaultHTMLConfig))
+
+				for _, decl := range fileAst.Decls {
+					switch d := decl.(type) {
+					case *ast.FuncDecl:
+						name := d.Name.String()
+						if d.Recv != nil {
+							name = strings.TrimPrefix(gist5639599.SprintAstBare(d.Recv.List[0].Type), "*") + "." + name
+							anns = append(anns, annotateNodes(fset, d.Recv, d.Name, fmt.Sprintf(`<h3 id="%s">`, name), `</h3>`, 1))
+						} else {
+							anns = append(anns, annotateNode(fset, d.Name, fmt.Sprintf(`<h3 id="%s">`, name), `</h3>`, 1))
 						}
-					case token.TYPE:
-						for _, spec := range d.Specs {
-							ident := spec.(*ast.TypeSpec).Name
-							anns = append(anns, annotateNode(fset, ident, fmt.Sprintf(`<h3 id="%s">`, ident.String()), `</h3>`, 1))
-							anns = append(anns, annotateNode(fset, ident, fmt.Sprintf(`<a href="%s">`, "#"+ident.String()), `</a>`, 2))
-						}
-					case token.CONST, token.VAR:
-						for _, spec := range d.Specs {
-							for _, ident := range spec.(*ast.ValueSpec).Names {
+						anns = append(anns, annotateNode(fset, d.Name, fmt.Sprintf(`<a href="%s">`, "#"+name), `</a>`, 2))
+					case *ast.GenDecl:
+						switch d.Tok {
+						case token.IMPORT:
+							for _, imp := range d.Specs {
+								path := imp.(*ast.ImportSpec).Path
+								pathValue, err := strconv.Unquote(path.Value)
+								if err != nil {
+									continue
+								}
+								values := req.URL.Query()
+								// If it crosses the repository boundary, do not persist the revision.
+								if !packageInsideRepo(pathValue, repoImportPath) {
+									delete(values, revisionQueryParameter)
+								}
+								url := url.URL{
+									Path:     "/" + pathValue,
+									RawQuery: values.Encode(),
+								}
+								anns = append(anns, annotateNode(fset, path, fmt.Sprintf(`<a href="%s">`, url.String()), `</a>`, 1))
+							}
+						case token.TYPE:
+							for _, spec := range d.Specs {
+								ident := spec.(*ast.TypeSpec).Name
 								anns = append(anns, annotateNode(fset, ident, fmt.Sprintf(`<h3 id="%s">`, ident.String()), `</h3>`, 1))
 								anns = append(anns, annotateNode(fset, ident, fmt.Sprintf(`<a href="%s">`, "#"+ident.String()), `</a>`, 2))
+							}
+						case token.CONST, token.VAR:
+							for _, spec := range d.Specs {
+								for _, ident := range spec.(*ast.ValueSpec).Names {
+									anns = append(anns, annotateNode(fset, ident, fmt.Sprintf(`<h3 id="%s">`, ident.String()), `</h3>`, 1))
+									anns = append(anns, annotateNode(fset, ident, fmt.Sprintf(`<a href="%s">`, "#"+ident.String()), `</a>`, 2))
+								}
 							}
 						}
 					}
 				}
-			}
 
-			sort.Sort(anns)
+				sort.Sort(anns)
 
-			b, err := annotate.Annotate(src, anns, func(w io.Writer, b []byte) { template.HTMLEscape(w, b) })
-			if err != nil {
-				panic(err)
+				annSrc, err = annotate.Annotate(src, anns, func(w io.Writer, b []byte) { template.HTMLEscape(w, b) })
+				if err != nil {
+					panic(err)
+				}
+			default:
+				// Skip annotation for huge files.
+				annSrc = src
 			}
 
 			lineCount := bytes.Count(src, []byte("\n"))
@@ -325,7 +339,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 				buf.WriteString("\n")
 			}
 			io.WriteString(&buf, `</pre><pre class="file">`)
-			buf.Write(b)
+			buf.Write(annSrc)
 			io.WriteString(&buf, `</pre></div></div>`)
 		}
 
