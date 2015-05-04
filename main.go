@@ -55,6 +55,12 @@ var stateFileFlag = flag.String("state-file", "", "File to save/load state.")
 
 var sg *vcsclient.Client
 
+var htmlAnnotator = func() syntaxhighlight.Annotator {
+	var c = syntaxhighlight.HTMLAnnotator(syntaxhighlight.DefaultHTMLConfig)
+	c.Plaintext = "" // Do not annotate plain text since it's not decorated.
+	return c
+}()
+
 var t *template.Template
 
 func loadTemplates() error {
@@ -267,7 +273,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 					panic(err)
 				}
 
-				anns, err := highlight_go.Annotate(src, syntaxhighlight.HTMLAnnotator(syntaxhighlight.DefaultHTMLConfig))
+				anns, err := highlight_go.Annotate(src, htmlAnnotator)
 
 				for _, decl := range fileAst.Decls {
 					switch d := decl.(type) {
