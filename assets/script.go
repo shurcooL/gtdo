@@ -26,7 +26,7 @@ func MustScrollTo(event dom.Event, targetId string) {
 	js.Global.Get("window").Get("history").Call("replaceState", nil, nil, "#"+targetId)
 
 	windowHalfHeight := dom.GetWindow().InnerHeight() * 2 / 5
-	dom.GetWindow().ScrollTo(dom.GetWindow().ScrollX(), int(target.OffsetTop()+target.OffsetHeight())-windowHalfHeight)
+	dom.GetWindow().ScrollTo(dom.GetWindow().ScrollX(), target.OffsetTop()+target.OffsetHeight()-windowHalfHeight)
 
 	processHash(targetId, true)
 
@@ -56,9 +56,9 @@ func LineNumber(event dom.Event, targetId string) {
 // valid is true iff the hash points to a valid target.
 func processHash(hash string, valid bool) {
 	// Clear everything.
-	for _, e := range document.GetElementsByClassName("selected-line") {
+	/*for _, e := range document.GetElementsByClassName("selected-line") {
 		e.Class().Remove("selected-line")
-	}
+	}*/
 	for _, e := range document.GetElementsByClassName("background") {
 		e.(dom.HTMLElement).Style().SetProperty("display", "none", "")
 	}
@@ -76,12 +76,13 @@ func processHash(hash string, valid bool) {
 		fileContent := fileHeader.ParentElement().GetElementsByClassName("file")[0].(dom.HTMLElement)
 		fileContent.Style().SetProperty("background-color", "red", "")*/
 
-		lineElement := document.GetElementByID(fmt.Sprintf("%s-L%d", file, start)).(dom.HTMLElement)
-		lineElement.Class().Add("selected-line")
+		//lineElement := document.GetElementByID(fmt.Sprintf("%s-L%d", file, start)).(dom.HTMLElement)
+		//lineElement.Class().Add("selected-line")
 
+		startElement := document.GetElementByID(fmt.Sprintf("%s-L%d", file, start)).(dom.HTMLElement)
 		var endElement dom.HTMLElement
 		if end == start {
-			endElement = lineElement
+			endElement = startElement
 		} else {
 			endElement = document.GetElementByID(fmt.Sprintf("%s-L%d", file, end)).(dom.HTMLElement)
 		}
@@ -89,8 +90,8 @@ func processHash(hash string, valid bool) {
 		fileHeader := document.GetElementByID(file).(dom.HTMLElement)
 		fileBackground := fileHeader.ParentElement().GetElementsByClassName("background")[0].(dom.HTMLElement)
 		fileBackground.Style().SetProperty("display", "initial", "")
-		fileBackground.Style().SetProperty("top", fmt.Sprintf("%vpx", lineElement.OffsetTop()), "")
-		fileBackground.Style().SetProperty("height", fmt.Sprintf("%vpx", endElement.OffsetTop()-lineElement.OffsetTop()+endElement.OffsetHeight()), "")
+		fileBackground.Style().SetProperty("top", fmt.Sprintf("%vpx", startElement.OffsetTop()), "")
+		fileBackground.Style().SetProperty("height", fmt.Sprintf("%vpx", endElement.OffsetTop()-startElement.OffsetTop()+endElement.OffsetHeight()), "")
 	}
 }
 
@@ -176,7 +177,7 @@ func init() {
 		target, ok := document.GetElementByID(targetId).(dom.HTMLElement)
 		if ok {
 			windowHalfHeight := dom.GetWindow().InnerHeight() * 2 / 5
-			dom.GetWindow().ScrollTo(dom.GetWindow().ScrollX(), int(rootOffsetTop(target)+target.OffsetHeight())-windowHalfHeight)
+			dom.GetWindow().ScrollTo(dom.GetWindow().ScrollX(), rootOffsetTop(target)+target.OffsetHeight()-windowHalfHeight)
 		}
 
 		processHash(hash, ok)

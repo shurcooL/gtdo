@@ -53,6 +53,7 @@ h1:hover .anchor, h2:hover .anchor, h3:hover .anchor, h4:hover .anchor, h5:hover
 	content: '\f05c'; /* https://octicons.github.com/icon/link/ */
 	color: black;
 	margin-left: 8px;
+	cursor: hand;
 }
 
 .header a:hover {
@@ -93,10 +94,6 @@ pre.file {
 	background: none !important;
 }
 
-.highlight .selected-line {
-	background-color: rgb(243, 136, 73);
-}
-
 .highlight h3 {
 	display: inline;
 	font-size: inherit;
@@ -116,7 +113,6 @@ pre.file {
 	font-family: Menlo, monospace;
 	padding: 10px;
 	margin: 0;
-	background-color: #f2f2f2;
 }
 
 .highlight .kwd { color: rgb(0.4%, 0%, 69.4%); font-weight: bold; }

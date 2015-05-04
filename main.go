@@ -376,7 +376,8 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 				fmt.Fprintf(&buf, `<div><h2 id="%s">%s<a class="anchor" onclick="MustScrollTo(event, &#34;\&#34;%s\&#34;&#34;);"><span class="anchor-icon octicon"></span></a></h2>`, sanitized_anchor_name.Create(goFile), html.EscapeString(goFile), sanitized_anchor_name.Create(goFile)) // HACK.
 				fmt.Fprintf(&buf, `<h5>%d lines</h5>`, len(lines)-1)
 				io.WriteString(&buf, `<div class="highlight highlight-Go">`)
-				io.WriteString(&buf, `<div class="background" style="position: absolute; z-index: -1; background-color: orange; width: 100%;"></div>`)
+				io.WriteString(&buf, `<div style="position: absolute; z-index: -2; background-color: #f2f2f2; width: 100%; height: 100%;"></div>`)
+				io.WriteString(&buf, `<div class="background" style="position: absolute; z-index: -1; background-color: rgb(236, 217, 145); width: 100%;"></div>`)
 				io.WriteString(&buf, `<pre style="float: left;">`)
 				for i := range iter.N(len(lines) - 1) {
 					fmt.Fprintf(&buf, `<span id="%s-L%d" class="ln" onclick="LineNumber(event, &#34;\&#34;%s-L%d\&#34;&#34;);">%d</span>`, sanitized_anchor_name.Create(goFile), i+1, sanitized_anchor_name.Create(goFile), i+1, i+1)
