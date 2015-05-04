@@ -1,0 +1,3 @@
+.git
+Godeps/_workspace/pkg
+Godeps/_workspace/src/github.com/libgit2/git2go/vendor/libgit2/build

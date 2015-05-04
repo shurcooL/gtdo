@@ -1,0 +1,40 @@
+language: go
+
+go:
+  - 1.3
+  - tip
+
+matrix:
+  allow_failures:
+    - go: tip
+
+before_install:
+  - mkdir -p $HOME/gopath/src/sourcegraph.com/sourcegraph
+  - mv $TRAVIS_BUILD_DIR $HOME/gopath/src/sourcegraph.com/sourcegraph/vcsstore
+  - export TRAVIS_BUILD_DIR=$HOME/gopath/src/sourcegraph.com/sourcegraph/vcsstore
+
+install:
+  - git config --global user.email "a@a.com"
+  - git config --global user.name "a"
+
+  - export PATH=$PATH:$HOME/gopath/bin
+  - export GOBIN=$HOME/gopath/bin
+
+# hg >~ 2.5 is needed, but Travis CI's Ubuntu 12.04 ships with hg ~2.0
+  - sudo add-apt-repository -y ppa:mercurial-ppa/releases
+  - sudo apt-get update
+  - sudo apt-get install mercurial
+
+  # install hglib for hg blame
+  - sudo easy_install python-hglib
+
+  # install libgit2
+  - sudo apt-get install cmake
+  - sudo apt-get install libssh2-1-dev
+  - cd $TRAVIS_BUILD_DIR
+  - go get -u github.com/tools/godep
+  - make build-libgit2
+
+script:
+  - make install
+  - make test 

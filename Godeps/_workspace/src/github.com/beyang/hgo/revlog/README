@@ -1,0 +1,31 @@
+Revlog NG == version 1 (since Mercurial 0.9)
+
+revision index: file extension .i
+
+Two storage types:
+
+-	each revision record is followed by patch data
+	(next revision record starts after that data)
+
+	This is for rather small files.
+
+-	patch data corresponding to revisions are stored externally,
+	in a file with same base name (stem), but extension `.d'
+
+Index record format is described at http://mercurial.selenic.com/wiki/RevlogNG
+
+A data chunk starts either with
+
+	u	uncompressed, skip 1 byte (the `u')
+
+	0	uncompressed, dont skip
+
+or
+	x	zlib compressed
+
+A data chunk consists of a collection of hunks, each starting
+with three 4-byte values: start, end, length, followed by
+the data.
+
+
+/home/micha/ib/wmipf.de/home/ib/mercurial/mercurial/revlog.py
