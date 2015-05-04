@@ -23,8 +23,8 @@ var state selection
 type selection struct {
 	valid bool
 	file  string
-	start int
-	end   int
+	start int // Start line of selection, or 0 if there's no line selection. First line is 1.
+	end   int // End line of selection. Same as start if it's one line selection.
 }
 
 // Hash returns a hash encoding of the selection, without '#'.
