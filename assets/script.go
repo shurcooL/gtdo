@@ -18,6 +18,30 @@ import (
 
 var document = dom.GetWindow().Document().(dom.HTMLDocument)
 
+var state selection
+
+type selection struct {
+	valid bool
+	file  string
+	start int
+	end   int
+}
+
+// Hash returns a hash encoding of the selection, without '#'.
+func (s selection) Hash() string {
+	if !s.valid {
+		return ""
+	}
+	hash := s.file
+	if s.start != 0 {
+		hash += fmt.Sprintf("-L%d", s.start)
+	}
+	if s.start != s.end {
+		hash += fmt.Sprintf("-L%d", s.end)
+	}
+	return hash
+}
+
 // targetId must point to a valid target.
 func MustScrollTo(event dom.Event, targetId string) {
 	target := document.GetElementByID(targetId).(dom.HTMLElement)
@@ -33,12 +57,29 @@ func MustScrollTo(event dom.Event, targetId string) {
 	fmt.Println("MustScrollTo:", targetId)
 }
 
+// expandLineSelection expands line selection if shift was held down when clicking a line number,
+// and it's in the same file as already highlighted. Otherwise return original targetId unmodified.
+func expandLineSelection(event dom.Event, targetId string) string {
+	me, ok := event.(*dom.MouseEvent)
+	if !(ok && me.ShiftKey && state.valid && state.start != 0) {
+		return targetId
+	}
+	file, start, end := parseHash(targetId)
+	if !(file == state.file && start != 0) {
+		return targetId
+	}
+	switch {
+	case start < state.start:
+		state.start = start
+	case end > state.end:
+		state.end = end
+	}
+	return state.Hash()
+}
+
 // targetId must point to a valid target.
 func LineNumber(event dom.Event, targetId string) {
-	me := event.(*dom.MouseEvent)
-	if me.ShiftKey {
-		return
-	}
+	targetId = expandLineSelection(event, targetId)
 
 	//target := document.GetElementByID(targetId).(dom.HTMLElement)
 
@@ -64,11 +105,12 @@ func processHash(hash string, valid bool) {
 	}
 
 	if !valid {
+		state.valid = false
 		return
 	}
 
 	file, start, end := parseHash(hash)
-	_, _, _ = file, start, end
+	state.file, state.start, state.end, state.valid = file, start, end, true
 
 	if start != 0 {
 		// DEBUG: Highlight entire file in red.
