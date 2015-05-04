@@ -30,6 +30,19 @@ span.spacing {
 	margin-right: 4px;
 }
 
+.ln {
+	float: left;
+	text-align: right;
+	width: 24px;
+	margin-right: 10px;
+	color: #b0b0b0;
+	cursor: hand;
+	-webkit-user-select: none;
+}
+.ln:hover {
+	color: #909090;
+}
+
 .anchor {
 	display: none;
 }
@@ -40,6 +53,7 @@ h1:hover .anchor, h2:hover .anchor, h3:hover .anchor, h4:hover .anchor, h5:hover
 	content: '\f05c'; /* https://octicons.github.com/icon/link/ */
 	color: black;
 	margin-left: 8px;
+	cursor: hand;
 }
 
 .header a:hover {
@@ -50,7 +64,7 @@ h1:hover .anchor, h2:hover .anchor, h3:hover .anchor, h4:hover .anchor, h5:hover
 	border: 1px solid lightgray;
 	padding-top: 2px;
 	padding-bottom: 2px;
-	background: white;
+	background-color: white;
 	font-size: 16px;
 }
 .import-path-container input {
@@ -62,7 +76,7 @@ h1:hover .anchor, h2:hover .anchor, h3:hover .anchor, h4:hover .anchor, h5:hover
 	cursor: hand;
 }
 .import-path-container button:hover {
-	background: #eeeeee;
+	background-color: #eeeeee;
 }
 
 * {
@@ -73,6 +87,13 @@ code {
 	font-size: 85%;
 }
 
+div.highlight {
+	position: relative;
+}
+pre.file {
+	background: none !important;
+}
+
 .highlight h3 {
 	display: inline;
 	font-size: inherit;
@@ -81,17 +102,17 @@ code {
 	font-weight: normal;
 }
 .highlight h3.highlighted {
-	background: rgb(243, 136, 73);
+	background-color: rgb(243, 136, 73);
 }
 .highlight h3.highlighted-fade {
-	background: rgba(243, 136, 73, 0.0);
+	background-color: rgba(243, 136, 73, 0.0);
 	transition: background 0.5s ease-in-out;
 }
 
 .highlight pre {
 	font-family: Menlo, monospace;
 	padding: 10px;
-	background-color: #f2f2f2;
+	margin: 0;
 }
 
 .highlight .kwd { color: rgb(0.4%, 0%, 69.4%); font-weight: bold; }

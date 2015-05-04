@@ -314,10 +314,19 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 				panic(err)
 			}
 
-			fmt.Fprintf(&buf, `<h2 id="%s">%s<a class="anchor" href="#%s"><span class="anchor-icon octicon"></span></a></h2>`, sanitized_anchor_name.Create(goFile), html.EscapeString(goFile), sanitized_anchor_name.Create(goFile))
-			io.WriteString(&buf, `<div class="highlight highlight-Go"><pre>`)
+			lineCount := bytes.Count(src, []byte("\n"))
+			fmt.Fprintf(&buf, `<div><h2 id="%s">%s<a class="anchor" onclick="MustScrollTo(event, &#34;\&#34;%s\&#34;&#34;);"><span class="anchor-icon octicon"></span></a></h2>`, sanitized_anchor_name.Create(goFile), html.EscapeString(goFile), sanitized_anchor_name.Create(goFile)) // HACK.
+			io.WriteString(&buf, `<div class="highlight highlight-Go">`)
+			io.WriteString(&buf, `<div style="position: absolute; z-index: -2; background-color: #f2f2f2; width: 100%; height: 100%;"></div>`)
+			io.WriteString(&buf, `<div class="background" style="position: absolute; z-index: -1; background-color: rgb(236, 217, 145); width: 100%;"></div>`)
+			io.WriteString(&buf, `<pre style="float: left;">`)
+			for i := 1; i <= lineCount; i++ {
+				fmt.Fprintf(&buf, `<span id="%s-L%d" class="ln" onclick="LineNumber(event, &#34;\&#34;%s-L%d\&#34;&#34;);">%d</span>`, sanitized_anchor_name.Create(goFile), i, sanitized_anchor_name.Create(goFile), i, i)
+				buf.WriteString("\n")
+			}
+			io.WriteString(&buf, `</pre><pre class="file">`)
 			buf.Write(b)
-			io.WriteString(&buf, `</pre></div>`)
+			io.WriteString(&buf, `</pre></div></div>`)
 		}
 
 		data.Files = template.HTML(buf.String())

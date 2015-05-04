@@ -73,11 +73,11 @@
 		},
 		{
 			"ImportPath": "github.com/shurcooL/frontend/checkbox",
-			"Rev": "8a33ca086c8a35ee55a92a44f29ae4b597f9b16f"
+			"Rev": "a39a32018c693fdce09f61bf3444427dd1e38017"
 		},
 		{
 			"ImportPath": "github.com/shurcooL/frontend/select_menu",
-			"Rev": "8a33ca086c8a35ee55a92a44f29ae4b597f9b16f"
+			"Rev": "a39a32018c693fdce09f61bf3444427dd1e38017"
 		},
 		{
 			"ImportPath": "github.com/shurcooL/go/exp/12",
@@ -211,6 +211,10 @@
 			"ImportPath": "gopkg.in/fsnotify.v1",
 			"Comment": "v1.2.0",
 			"Rev": "96c060f6a6b7e0d6f75fddd10efeaca3e5d1bcb0"
+		},
+		{
+			"ImportPath": "honnef.co/go/js/dom",
+			"Rev": "18952c50f51b6dd42fca1ee78fed1a942aecbf1f"
 		},
 		{
 			"ImportPath": "sourcegraph.com/sourcegraph/datad",
