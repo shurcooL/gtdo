@@ -53,8 +53,6 @@ func MustScrollTo(event dom.Event, targetId string) {
 	dom.GetWindow().ScrollTo(dom.GetWindow().ScrollX(), target.OffsetTop()+target.OffsetHeight()-windowHalfHeight)
 
 	processHash(targetId, true)
-
-	fmt.Println("MustScrollTo:", targetId)
 }
 
 // expandLineSelection expands line selection if shift was held down when clicking a line number,
@@ -81,25 +79,15 @@ func expandLineSelection(event dom.Event, targetId string) string {
 func LineNumber(event dom.Event, targetId string) {
 	targetId = expandLineSelection(event, targetId)
 
-	//target := document.GetElementByID(targetId).(dom.HTMLElement)
-
 	// dom.GetWindow().History().ReplaceState(nil, nil, href)
 	js.Global.Get("window").Get("history").Call("replaceState", nil, nil, "#"+targetId)
 
-	//windowHalfHeight := dom.GetWindow().InnerHeight() * 2 / 5
-	//dom.GetWindow().ScrollTo(dom.GetWindow().ScrollX(), int(target.OffsetTop()+target.OffsetHeight())-windowHalfHeight)
-
 	processHash(targetId, true)
-
-	fmt.Println("LineNumber:", targetId)
 }
 
 // valid is true iff the hash points to a valid target.
 func processHash(hash string, valid bool) {
 	// Clear everything.
-	/*for _, e := range document.GetElementsByClassName("selected-line") {
-		e.Class().Remove("selected-line")
-	}*/
 	for _, e := range document.GetElementsByClassName("background") {
 		e.(dom.HTMLElement).Style().SetProperty("display", "none", "")
 	}
@@ -113,14 +101,6 @@ func processHash(hash string, valid bool) {
 	state.file, state.start, state.end, state.valid = file, start, end, true
 
 	if start != 0 {
-		// DEBUG: Highlight entire file in red.
-		/*fileHeader := document.GetElementByID(file).(dom.HTMLElement)
-		fileContent := fileHeader.ParentElement().GetElementsByClassName("file")[0].(dom.HTMLElement)
-		fileContent.Style().SetProperty("background-color", "red", "")*/
-
-		//lineElement := document.GetElementByID(fmt.Sprintf("%s-L%d", file, start)).(dom.HTMLElement)
-		//lineElement.Class().Add("selected-line")
-
 		startElement := document.GetElementByID(fmt.Sprintf("%s-L%d", file, start)).(dom.HTMLElement)
 		var endElement dom.HTMLElement
 		if end == start {
@@ -140,7 +120,6 @@ func processHash(hash string, valid bool) {
 func parseHash(hash string) (file string, start, end int) {
 	parts := strings.Split(hash, "-")
 	if file, start, end, ok := tryParseFileLineRange(parts); ok {
-		fmt.Println("tryParseFileLineRange:", file, start, end, ok)
 		return file, start, end
 	} else if file, line, ok := tryParseFileLine(parts); ok {
 		return file, line, line
@@ -209,7 +188,7 @@ func init() {
 	processHashSet := func() {
 		// Scroll to hash target.
 		hash := strings.TrimPrefix(dom.GetWindow().Location().Hash, "#")
-		parts := strings.Split(hash, "-") // TODO: Factor out.
+		parts := strings.Split(hash, "-")
 		var targetId string
 		if file, start, _, ok := tryParseFileLineRange(parts); ok {
 			targetId = fmt.Sprintf("%s-L%d", file, start)
@@ -225,13 +204,10 @@ func init() {
 		processHash(hash, ok)
 	}
 	document.AddEventListener("DOMContentLoaded", false, func(_ dom.Event) {
-		// This needs to be in a goroutine or else it "happens too early". See if there's a better event than DOMContentLoaded.
+		// This needs to be in a goroutine or else it "happens too early".
+		// TODO: See if there's a better event than DOMContentLoaded.
 		go func() {
-			//time.Sleep(
-
 			processHashSet()
-
-			fmt.Println("DOMContentLoaded:", strings.TrimPrefix(dom.GetWindow().Location().Hash, "#"))
 		}()
 	})
 	// Start watching for hashchange events.
@@ -239,8 +215,6 @@ func init() {
 		event.PreventDefault()
 
 		processHashSet()
-
-		fmt.Println("hash changed:", strings.TrimPrefix(dom.GetWindow().Location().Hash, "#"))
 	})
 }
 
