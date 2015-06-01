@@ -50,7 +50,7 @@ func MustScrollTo(event dom.Event, targetId string) {
 	js.Global.Get("window").Get("history").Call("replaceState", nil, nil, "#"+targetId)
 
 	windowHalfHeight := dom.GetWindow().InnerHeight() * 2 / 5
-	dom.GetWindow().ScrollTo(dom.GetWindow().ScrollX(), target.OffsetTop()+target.OffsetHeight()-windowHalfHeight)
+	dom.GetWindow().ScrollTo(dom.GetWindow().ScrollX(), int(offsetTopRoot(target)+target.OffsetHeight())-windowHalfHeight)
 
 	processHash(targetId, true)
 }
@@ -172,13 +172,13 @@ func tryParseFileLineRange(parts []string) (file string, start, end int, ok bool
 	return strings.Join(parts[:len(parts)-2], "-"), start, end, true
 }
 
-// rootOffsetTop returns the offset top of element e relative to root element.
-func rootOffsetTop(e dom.HTMLElement) float64 {
-	var rootOffsetTop float64
+// offsetTopRoot returns the offset top of element e relative to root element.
+func offsetTopRoot(e dom.HTMLElement) float64 {
+	var offsetTopRoot float64
 	for ; e != nil; e = e.OffsetParent() {
-		rootOffsetTop += e.OffsetTop()
+		offsetTopRoot += e.OffsetTop()
 	}
-	return rootOffsetTop
+	return offsetTopRoot
 }
 
 func init() {
@@ -198,7 +198,7 @@ func init() {
 		target, ok := document.GetElementByID(targetId).(dom.HTMLElement)
 		if ok {
 			windowHalfHeight := dom.GetWindow().InnerHeight() * 2 / 5
-			dom.GetWindow().ScrollTo(dom.GetWindow().ScrollX(), rootOffsetTop(target)+target.OffsetHeight()-windowHalfHeight)
+			dom.GetWindow().ScrollTo(dom.GetWindow().ScrollX(), int(offsetTopRoot(target)+target.OffsetHeight())-windowHalfHeight)
 		}
 
 		processHash(hash, ok)
