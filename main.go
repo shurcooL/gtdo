@@ -26,6 +26,7 @@ import (
 	"go/parser"
 	"go/token"
 
+	"github.com/dustin/go-humanize"
 	"github.com/shurcooL/frontend/checkbox"
 	"github.com/shurcooL/frontend/select_menu"
 	"github.com/shurcooL/go/gists/gist5639599"
@@ -65,7 +66,10 @@ var t *template.Template
 
 func loadTemplates() error {
 	var err error
-	t = template.New("").Funcs(template.FuncMap{})
+	t = template.New("").Funcs(template.FuncMap{
+		"commitId": func(commitId vcs.CommitID) vcs.CommitID { return commitId[:8] },
+		"time":     humanize.Time,
+	})
 	t, err = t.ParseGlob("./assets/*.tmpl")
 	return err
 }
@@ -174,7 +178,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 
 	log.Printf("req: importPath=%q rev=%q.\n", importPath, rev)
 
-	source, bpkg, repoImportPath, fs, branches, defaultBranch, err := try(importPath, rev)
+	source, bpkg, repoImportPath, commit, fs, branches, defaultBranch, err := try(importPath, rev)
 	log.Println("using source:", source)
 	if err != nil {
 		log.Println("try:", err)
@@ -187,6 +191,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		FullQuery          string // Either blank, or "?query".
 		ImportPath         string
 		ImportPathElements template.HTML // Import path with linkified elements.
+		Commit             *vcs.Commit
 		DirExists          bool
 		Bpkg               *build.Package
 		Folders            []string
@@ -198,6 +203,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		FullQuery:          fullQuery(req.URL.RawQuery),
 		ImportPath:         importPath,
 		ImportPathElements: ImportPathElementsHtml(repoImportPath, importPath, req.URL.RawQuery),
+		Commit:             commit,
 		DirExists:          fs != nil,
 		Bpkg:               bpkg,
 		Tests:              checkbox.New(false, req.URL.Query(), testsQueryParameter),
@@ -371,14 +377,14 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 // Try local first, if not, try remote, if not, clone/update remote and try one last time.
-func try(importPath, rev string) (source string, bpkg *build.Package, repoImportPath string, fs vfs.FileSystem, branchNames []string, defaultBranch string, err error) {
+func try(importPath, rev string) (source string, bpkg *build.Package, repoImportPath string, commit *vcs.Commit, fs vfs.FileSystem, branchNames []string, defaultBranch string, err error) {
 	var repo vcs.Repository
 	var commitId vcs.CommitID
 	if bpkg, fs, err = tryLocalGoroot(importPath, rev); err == nil {
 		// Use local GOROOT package.
 		source = "goroot"
 		repoImportPath = strings.Split(importPath, "/")[0]
-		return source, bpkg, repoImportPath, fs, nil, "", nil
+		return source, bpkg, repoImportPath, nil, fs, nil, "", nil
 	} else if repo, repoImportPath, commitId, defaultBranch, err = tryLocalGopath(importPath, rev); err == nil {
 		// Use local GOPATH package.
 		source = "gopath"
@@ -386,12 +392,12 @@ func try(importPath, rev string) (source string, bpkg *build.Package, repoImport
 		// Use remote.
 		source = "remote"
 	} else {
-		return source, nil, "", nil, nil, "", err
+		return source, nil, "", nil, nil, nil, "", err
 	}
 
 	branches, err := repo.Branches()
 	if err != nil {
-		return source, nil, "", nil, nil, "", err
+		return source, nil, "", nil, nil, nil, "", err
 	}
 	branchNames = make([]string, len(branches))
 	for i, branch := range branches {
@@ -399,9 +405,14 @@ func try(importPath, rev string) (source string, bpkg *build.Package, repoImport
 	}
 	sort.Strings(branchNames)
 
+	commit, err = repo.GetCommit(commitId)
+	if err != nil {
+		return source, nil, "", nil, nil, nil, "", err
+	}
+
 	fs, err = repo.FileSystem(commitId)
 	if err != nil {
-		return source, nil, "", nil, nil, "", err
+		return source, nil, "", nil, nil, nil, "", err
 	}
 
 	// This adapter is needed to make fs.Open("/main.go") work, since the local repo's vfs only allows fs.Open("main.go").
@@ -412,17 +423,17 @@ func try(importPath, rev string) (source string, bpkg *build.Package, repoImport
 
 	// Verify the import path is an existing subdirectory (it may exist on one branch, but not another).
 	if fi, err := fs.Stat("/virtual-go-workspace/src/" + importPath); !(err == nil && fi.IsDir()) {
-		return source, nil, repoImportPath, nil, branchNames, defaultBranch, nil
+		return source, nil, repoImportPath, nil, nil, branchNames, defaultBranch, nil
 	}
 
 	context := buildContextUsingFS(fs)
 	context.GOPATH = "/virtual-go-workspace"
 	bpkg, err = context.Import(importPath, "", 0)
 	if err != nil {
-		return source, nil, repoImportPath, fs, branchNames, defaultBranch, nil
+		return source, nil, repoImportPath, commit, fs, branchNames, defaultBranch, nil
 	}
 
-	return source, bpkg, repoImportPath, fs, branchNames, defaultBranch, nil
+	return source, bpkg, repoImportPath, commit, fs, branchNames, defaultBranch, nil
 }
 
 func tryLocalGoroot(importPath, rev string) (bpkg *build.Package, fs vfs.FileSystem, err error) {
