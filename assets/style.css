@@ -18,6 +18,12 @@ a.black:hover {
 	color: #4183c4;
 }
 
+div.center-max-width {
+	max-width: 1000px;
+	margin-left: auto;
+	margin-right: auto;
+}
+
 article {
 	font-size: 16px;
 	line-height: 1.6;
