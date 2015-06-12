@@ -51,7 +51,7 @@ import (
 
 var httpFlag = flag.String("http", ":8080", "Listen for HTTP connections on this address.")
 var productionFlag = flag.Bool("production", false, "Production mode.")
-var vcsstoreHostFlag = flag.String("vcsstore-host", "localhost:9090", "Host of backing vcsstore.")
+var vcsstoreHostFlag = flag.String("vcsstore-host", "", "Host of backing vcsstore.")
 var stateFileFlag = flag.String("state-file", "", "File to save/load state.")
 
 var sg *vcsclient.Client
@@ -86,8 +86,10 @@ func main() {
 	transport := httpcache.NewMemoryCacheTransport()
 	cacheClient := &http.Client{Transport: transport}
 
-	sg = vcsclient.New(&url.URL{Scheme: "http", Host: *vcsstoreHostFlag}, cacheClient)
-	sg.UserAgent = "gotools.org backend " + sg.UserAgent
+	if *vcsstoreHostFlag != "" {
+		sg = vcsclient.New(&url.URL{Scheme: "http", Host: *vcsstoreHostFlag}, cacheClient)
+		sg.UserAgent = "gotools.org backend " + sg.UserAgent
+	}
 
 	http.HandleFunc("/", codeHandler)
 	http.Handle("/assets/", http.FileServer(http.Dir(".")))
@@ -508,6 +510,10 @@ func tryLocalGopath(importPath, rev string) (repo vcs.Repository, repoImportPath
 }
 
 func tryRemote(importPath, rev string) (repo vcs.Repository, repoImportPath string, commitId vcs.CommitID, defaultBranch string, err error) {
+	if sg == nil {
+		return nil, "", "", "", errors.New("no backing vcsstore specified")
+	}
+
 	repoImportPath, cloneUrl, vcsRepo, err := importPathToRepoRoot(importPath)
 	if err != nil {
 		return nil, "", "", "", err
