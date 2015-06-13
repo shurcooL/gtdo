@@ -12,7 +12,7 @@ import (
 func (h *Handler) serveRepoDiff(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 
-	repo, _, done, err := h.getRepo(r)
+	repo, _, done, _, err := h.getRepo(r)
 	if err != nil {
 		return err
 	}
@@ -53,13 +53,13 @@ func (h *Handler) serveRepoDiff(w http.ResponseWriter, r *http.Request) error {
 func (h *Handler) serveRepoCrossRepoDiff(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 
-	baseRepo, _, doneBase, err := h.getRepo(r)
+	baseRepo, _, doneBase, _, err := h.getRepo(r)
 	if err != nil {
 		return err
 	}
 	defer doneBase()
 
-	headRepo, _, doneHead, err := h.getRepoLabeled(r, "Head")
+	headRepo, _, doneHead, _, err := h.getRepoLabeled(r, "Head")
 	if err != nil {
 		return err
 	}

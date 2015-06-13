@@ -456,6 +456,10 @@ func (r *Repository) UpdateEverything(opt vcs.RemoteOpts) error {
 	r.editLock.Lock()
 	defer r.editLock.Unlock()
 
+	now := time.Now()
+	os.Chtimes(r.Dir, now, now)
+	fmt.Println("UPDATING Chtimes!!!!!!!!!!!!!!!!!!!!!!!!!")
+
 	cmd := exec.Command("git", "remote", "update")
 	cmd.Dir = r.Dir
 

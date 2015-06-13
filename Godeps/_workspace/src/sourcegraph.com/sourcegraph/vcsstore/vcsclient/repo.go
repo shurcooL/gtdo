@@ -8,7 +8,9 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/google/go-querystring/query"
 	muxpkg "github.com/sourcegraph/mux"
 	"golang.org/x/tools/godoc/vfs"
@@ -34,6 +36,12 @@ type repository struct {
 	client   *Client
 	vcsType  string
 	cloneURL *url.URL
+
+	lastUpdated time.Time
+}
+
+func (r *repository) LastUpdated() time.Time {
+	return r.lastUpdated
 }
 
 type RepositoryCloneUpdater interface {
@@ -63,6 +71,17 @@ func (r *repository) CloneOrUpdate(opt vcs.RemoteOpts) error {
 		return fmt.Errorf("CloneOrUpdate: HTTP error %d", c)
 	}
 
+	if lastUpdatedHeader := resp.Header.Get("Last-Updated"); lastUpdatedHeader != "" {
+		if t, err := http.ParseTime(lastUpdatedHeader); err == nil {
+			if t.After(r.lastUpdated) {
+				r.lastUpdated = t
+				fmt.Println("CloneOrUpdate: got LastUpdated header:", humanize.Time(r.lastUpdated))
+			} else {
+				fmt.Println("CloneOrUpdate: ignoring outdated LastUpdated header:", humanize.Time(r.lastUpdated))
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -82,6 +101,17 @@ func (r *repository) ResolveBranch(name string) (vcs.CommitID, error) {
 		return "", err
 	}
 
+	if lastUpdatedHeader := resp.Header.Get("Last-Updated"); lastUpdatedHeader != "" {
+		if t, err := http.ParseTime(lastUpdatedHeader); err == nil {
+			if t.After(r.lastUpdated) {
+				r.lastUpdated = t
+				fmt.Println("ResolveBranch: got LastUpdated header:", humanize.Time(r.lastUpdated))
+			} else {
+				fmt.Println("ResolveBranch: ignoring outdated LastUpdated header:", humanize.Time(r.lastUpdated))
+			}
+		}
+	}
+
 	return r.parseCommitIDInURL(resp.Header.Get("location"))
 }
 
@@ -99,6 +129,17 @@ func (r *repository) ResolveRevision(spec string) (vcs.CommitID, error) {
 	resp, err := r.client.doIgnoringRedirects(req)
 	if err != nil {
 		return "", err
+	}
+
+	if lastUpdatedHeader := resp.Header.Get("Last-Updated"); lastUpdatedHeader != "" {
+		if t, err := http.ParseTime(lastUpdatedHeader); err == nil {
+			if t.After(r.lastUpdated) {
+				r.lastUpdated = t
+				fmt.Println("ResolveRevision: got LastUpdated header:", humanize.Time(r.lastUpdated))
+			} else {
+				fmt.Println("ResolveRevision: ignoring outdated LastUpdated header:", humanize.Time(r.lastUpdated))
+			}
+		}
 	}
 
 	return r.parseCommitIDInURL(resp.Header.Get("location"))

@@ -16,6 +16,10 @@
 					<div style="padding: 30px;">
 						<h1>{{.ImportPathElements}}</h1>
 						{{with .Commit}}<p>Commit {{template "commitId" .ID}} from {{template "time" .Author.Date}}.</p>{{end}}
+						{{with .LastUpdated}}
+						<form name="x-refresh" method="POST" action=""></form>
+						<p>Updated {{template "time" .}}. <a href="javascript:document.getElementsByName('x-refresh')[0].submit();">Refresh now</a>.</p>
+						{{end}}
 						<p>{{with .Branches}}<span class="spacing" title="Branch"><span class="octicon octicon-git-branch" style="margin-right: 8px;"></span>{{.}}</span>{{end}}
 						<span class="spacing" title="Display Test Files"><label>{{.Tests}}Tests</label></span></p>
 						{{if .Folders}}

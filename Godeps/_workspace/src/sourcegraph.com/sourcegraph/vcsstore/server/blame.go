@@ -12,7 +12,7 @@ import (
 func (h *Handler) serveRepoBlameFile(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 
-	repo, _, done, err := h.getRepo(r)
+	repo, _, done, _, err := h.getRepo(r)
 	if err != nil {
 		return err
 	}

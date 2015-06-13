@@ -7,14 +7,16 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/sourcegraph/mux"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
 )
 
 func (h *Handler) serveRepo(w http.ResponseWriter, r *http.Request) error {
-	repo, cloneURL, done, err := h.getRepo(r)
+	repo, cloneURL, done, _, err := h.getRepo(r)
 	if err != nil {
 		return err
 	}
@@ -36,7 +38,7 @@ func (h *Handler) serveRepoCreateOrUpdate(w http.ResponseWriter, r *http.Request
 
 	var cloned bool // whether the repo was newly cloned
 	vcsType := mux.Vars(r)["VCS"]
-	repo, cloneURL, _, err := h.getRepo(r)
+	repo, cloneURL, _, _, err := h.getRepo(r)
 	if errorHTTPStatusCode(err) == http.StatusNotFound {
 		cloned = true
 		repo, err = h.Service.Clone(vcsType, cloneURL, opt)
@@ -59,6 +61,10 @@ func (h *Handler) serveRepoCreateOrUpdate(w http.ResponseWriter, r *http.Request
 		if err != nil {
 			return cloneOrUpdateError(err)
 		}
+
+		lu := time.Now().UTC()
+		w.Header().Set("Last-Updated", lu.Format(http.TimeFormat))
+		fmt.Println("serveRepoCreateOrUpdate: serving LastUpdated:", humanize.Time(lu))
 
 		return nil
 	}
@@ -89,29 +95,29 @@ const (
 	cloneIfNotExists = 1 << iota
 )
 
-func (h *Handler) getRepo(r *http.Request) (repo interface{}, cloneURL *url.URL, done func(), err error) {
+func (h *Handler) getRepo(r *http.Request) (repo interface{}, cloneURL *url.URL, done func(), lastUpdated time.Time, err error) {
 	return h.getRepoLabeled(r, "")
 }
 
 // getRepoLabel allows either getting the main repo in the URL or
 // another one, such as the head repo for cross-repo diffs.
-func (h *Handler) getRepoLabeled(r *http.Request, label string) (repo interface{}, cloneURL *url.URL, done func(), err error) {
+func (h *Handler) getRepoLabeled(r *http.Request, label string) (repo interface{}, cloneURL *url.URL, done func(), lastUpdated time.Time, err error) {
 	v := mux.Vars(r)
 	vcsType := v[label+"VCS"]
 	cloneURLStr := v[label+"CloneURL"]
 	if cloneURLStr == "" {
 		// If cloneURLStr is empty, then the CloneURLEscaped route var failed to
 		// be unescaped using url.QueryUnescape.
-		return nil, nil, nil, &httpError{http.StatusBadRequest, errors.New("invalid clone URL (unescaping failed)")}
+		return nil, nil, nil, time.Time{}, &httpError{http.StatusBadRequest, errors.New("invalid clone URL (unescaping failed)")}
 	}
 
 	cloneURL, err = url.Parse(cloneURLStr)
 	if err != nil {
-		return nil, nil, nil, &httpError{http.StatusBadRequest, errors.New("invalid clone URL (parsing failed)")}
+		return nil, nil, nil, time.Time{}, &httpError{http.StatusBadRequest, errors.New("invalid clone URL (parsing failed)")}
 	}
 
 	if cloneURL.Scheme == "" || cloneURL.Host == "" {
-		return nil, cloneURL, nil, errors.New("invalid clone URL")
+		return nil, cloneURL, nil, time.Time{}, errors.New("invalid clone URL")
 	}
 
 	repo, err = h.Service.Open(vcsType, cloneURL)
@@ -119,12 +125,16 @@ func (h *Handler) getRepoLabeled(r *http.Request, label string) (repo interface{
 		if os.IsNotExist(err) {
 			err = &httpError{http.StatusNotFound, vcsclient.ErrRepoNotExist}
 		}
-		return nil, cloneURL, nil, err
+		return nil, cloneURL, nil, time.Time{}, err
 	}
+
+	lastUpdated = repo.(interface {
+		LastUpdated() time.Time
+	}).LastUpdated()
 
 	done = func() {
 		h.Service.Close(vcsType, cloneURL)
 	}
 
-	return repo, cloneURL, done, nil
+	return repo, cloneURL, done, lastUpdated, nil
 }

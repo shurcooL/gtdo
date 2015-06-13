@@ -13,7 +13,7 @@ import (
 func (h *Handler) serveRepoCommit(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 
-	repo, cloneURL, done, err := h.getRepo(r)
+	repo, cloneURL, done, _, err := h.getRepo(r)
 	if err != nil {
 		return err
 	}

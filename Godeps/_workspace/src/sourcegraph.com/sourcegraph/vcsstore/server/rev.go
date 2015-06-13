@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/dustin/go-humanize"
 	"github.com/sourcegraph/mux"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 )
@@ -11,7 +12,7 @@ import (
 func (h *Handler) serveRepoBranch(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 
-	repo, cloneURL, done, err := h.getRepo(r)
+	repo, cloneURL, done, lu, err := h.getRepo(r)
 	if err != nil {
 		return err
 	}
@@ -26,6 +27,9 @@ func (h *Handler) serveRepoBranch(w http.ResponseWriter, r *http.Request) error 
 			return err
 		}
 
+		w.Header().Set("Last-Updated", lu.Format(http.TimeFormat))
+		fmt.Println("serveRepoBranch: serving LastUpdated:", humanize.Time(lu))
+
 		setShortCache(w)
 		http.Redirect(w, r, h.router.URLToRepoCommit(v["VCS"], cloneURL, commitID).String(), http.StatusFound)
 		return nil
@@ -37,7 +41,7 @@ func (h *Handler) serveRepoBranch(w http.ResponseWriter, r *http.Request) error 
 func (h *Handler) serveRepoRevision(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 
-	repo, cloneURL, done, err := h.getRepo(r)
+	repo, cloneURL, done, lu, err := h.getRepo(r)
 	if err != nil {
 		return err
 	}
@@ -51,6 +55,9 @@ func (h *Handler) serveRepoRevision(w http.ResponseWriter, r *http.Request) erro
 		if err != nil {
 			return err
 		}
+
+		w.Header().Set("Last-Updated", lu.Format(http.TimeFormat))
+		fmt.Println("serveRepoRevision: serving LastUpdated:", humanize.Time(lu))
 
 		var statusCode int
 		if commitIDIsCanon(v["RevSpec"]) {
@@ -70,7 +77,7 @@ func (h *Handler) serveRepoRevision(w http.ResponseWriter, r *http.Request) erro
 func (h *Handler) serveRepoTag(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 
-	repo, cloneURL, done, err := h.getRepo(r)
+	repo, cloneURL, done, _, err := h.getRepo(r)
 	if err != nil {
 		return err
 	}

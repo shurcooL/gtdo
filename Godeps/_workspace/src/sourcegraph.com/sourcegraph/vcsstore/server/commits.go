@@ -11,7 +11,7 @@ import (
 )
 
 func (h *Handler) serveRepoCommits(w http.ResponseWriter, r *http.Request) error {
-	repo, _, done, err := h.getRepo(r)
+	repo, _, done, _, err := h.getRepo(r)
 	if err != nil {
 		return err
 	}

@@ -11,7 +11,7 @@ import (
 func (h *Handler) serveRepoMergeBase(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 
-	repo, cloneURL, done, err := h.getRepo(r)
+	repo, cloneURL, done, _, err := h.getRepo(r)
 	if err != nil {
 		return err
 	}
@@ -43,13 +43,13 @@ func (h *Handler) serveRepoMergeBase(w http.ResponseWriter, r *http.Request) err
 func (h *Handler) serveRepoCrossRepoMergeBase(w http.ResponseWriter, r *http.Request) error {
 	v := mux.Vars(r)
 
-	repoA, cloneURLA, doneA, err := h.getRepo(r)
+	repoA, cloneURLA, doneA, _, err := h.getRepo(r)
 	if err != nil {
 		return err
 	}
 	defer doneA()
 
-	repoB, _, doneB, err := h.getRepoLabeled(r, "B")
+	repoB, _, doneB, _, err := h.getRepoLabeled(r, "B")
 	if err != nil {
 		return err
 	}

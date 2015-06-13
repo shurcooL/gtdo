@@ -92,6 +92,22 @@ type repoKey struct {
 	cloneDir string
 }
 
+type repoLastUpdated struct {
+	vcs.Repository
+	lastUpdated time.Time
+}
+
+func (r *repoLastUpdated) UpdateEverything(opt vcs.RemoteOpts) error {
+	r.lastUpdated = time.Now().UTC()
+	return r.Repository.(interface {
+		UpdateEverything(opt vcs.RemoteOpts) error
+	}).UpdateEverything(opt)
+}
+
+func (r repoLastUpdated) LastUpdated() time.Time {
+	return r.lastUpdated
+}
+
 func (s *service) Open(vcsType string, cloneURL *url.URL) (interface{}, error) {
 	cloneDir, err := s.CloneDir(vcsType, cloneURL)
 	if err != nil {
@@ -112,14 +128,21 @@ func (s *service) open(vcsType, cloneDir string) (interface{}, error) {
 	}
 	s.repoMuMu.Unlock()
 
+	var lastUpdated time.Time
 	if fi, err := os.Stat(cloneDir); err != nil {
 		return nil, err
 	} else if !fi.Mode().IsDir() {
 		return nil, fmt.Errorf("clone path %q is not a directory", cloneDir)
+	} else {
+		lastUpdated = fi.ModTime().UTC()
 	}
-	repo, err := vcs.Open(vcsType, cloneDir)
+	vcsRepo, err := vcs.Open(vcsType, cloneDir)
 	if err != nil {
 		return nil, err
+	}
+	repo := &repoLastUpdated{
+		Repository:  vcsRepo,
+		lastUpdated: lastUpdated,
 	}
 
 	s.repoMuMu.Lock()
