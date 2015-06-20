@@ -69,12 +69,7 @@ func loadTemplates() error {
 	var err error
 	t = template.New("").Funcs(template.FuncMap{
 		"commitId": func(commitId vcs.CommitID) vcs.CommitID { return commitId[:8] },
-		"time": func(then time.Time) string {
-			if time.Since(then) < time.Minute {
-				return "less than a minute ago"
-			}
-			return humanize.Time(then)
-		},
+		"time":     minuteTime,
 	})
 	t, err = t.ParseGlob("./assets/*.tmpl")
 	return err
