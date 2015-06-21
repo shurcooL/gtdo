@@ -4,6 +4,7 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -13,6 +14,7 @@ import (
 	_ "github.com/shurcooL/frontend/select_menu"
 	_ "github.com/shurcooL/frontend/table-of-contents"
 	"github.com/shurcooL/go/gopherjs_http/jsutil"
+	"github.com/shurcooL/gtdo/gtdo"
 	"honnef.co/go/js/dom"
 )
 
@@ -215,6 +217,25 @@ func init() {
 		event.PreventDefault()
 
 		processHashSet()
+	})
+
+	// 'y' keyboard shortcut to get permalink.
+	document.AddEventListener("keydown", false, func(event dom.Event) {
+		ke := event.(*dom.KeyboardEvent)
+		if ke.Repeat {
+			return
+		}
+		if ke.KeyCode != 'Y' {
+			return
+		}
+
+		// Set revision query parameter to full commit id.
+		query, _ := url.ParseQuery(strings.TrimPrefix(dom.GetWindow().Location().Search, "?"))
+		query.Set(gtdo.RevisionQueryParameter, document.GetElementByID("commit-id").GetAttribute("title"))
+		// TODO: dom.GetWindow().History().PushState(nil, nil, "#"+element.GetAttribute("data-id"))
+		js.Global.Get("window").Get("history").Call("pushState", nil, nil, "?"+query.Encode())
+
+		ke.PreventDefault()
 	})
 }
 

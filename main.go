@@ -35,6 +35,7 @@ import (
 	"github.com/shurcooL/go/gopherjs_http"
 	vcs2 "github.com/shurcooL/go/vcs"
 	"github.com/shurcooL/go/vfs_util"
+	"github.com/shurcooL/gtdo/gtdo"
 	"github.com/shurcooL/highlight_go"
 	"github.com/shurcooL/sanitized_anchor_name"
 	"github.com/sourcegraph/annotate"
@@ -142,10 +143,7 @@ Disallow: /
 }
 
 func codeHandler(w http.ResponseWriter, req *http.Request) {
-	const (
-		revisionQueryParameter = "rev"
-		testsQueryParameter    = "tests"
-	)
+	const testsQueryParameter = "tests"
 
 	if !*productionFlag {
 		err := loadTemplates()
@@ -175,7 +173,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	importPath := req.URL.Path[1:]
-	rev := req.URL.Query().Get(revisionQueryParameter)
+	rev := req.URL.Query().Get(gtdo.RevisionQueryParameter)
 	_, includeTestFiles := req.URL.Query()[testsQueryParameter]
 
 	log.Printf("req: importPath=%q rev=%q.\n", importPath, rev)
@@ -229,7 +227,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 
 	// Branches.
 	if len(branches) != 0 {
-		data.Branches = select_menu.New(branches, defaultBranch, req.URL.Query(), revisionQueryParameter)
+		data.Branches = select_menu.New(branches, defaultBranch, req.URL.Query(), gtdo.RevisionQueryParameter)
 	}
 
 	if bpkg != nil {
@@ -306,7 +304,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 								values := req.URL.Query()
 								// If it crosses the repository boundary, do not persist the revision.
 								if !packageInsideRepo(pathValue, repoImportPath) {
-									delete(values, revisionQueryParameter)
+									delete(values, gtdo.RevisionQueryParameter)
 								}
 								url := url.URL{
 									Path:     "/" + pathValue,
