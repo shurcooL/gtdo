@@ -229,11 +229,13 @@ func init() {
 			return
 		}
 
-		// Set revision query parameter to full commit id.
+		// Set revision query parameter to full commit id, if it's not already.
 		query, _ := url.ParseQuery(strings.TrimPrefix(dom.GetWindow().Location().Search, "?"))
-		query.Set(gtdo.RevisionQueryParameter, document.GetElementByID("commit-id").GetAttribute("title"))
-		// TODO: dom.GetWindow().History().PushState(nil, nil, "#"+element.GetAttribute("data-id"))
-		js.Global.Get("window").Get("history").Call("pushState", nil, nil, "?"+query.Encode())
+		if commitId := document.GetElementByID("commit-id").GetAttribute("title"); query.Get(gtdo.RevisionQueryParameter) != commitId {
+			query.Set(gtdo.RevisionQueryParameter, commitId)
+			// TODO: dom.GetWindow().History().PushState(nil, nil, "#"+element.GetAttribute("data-id"))
+			js.Global.Get("window").Get("history").Call("pushState", nil, nil, "?"+query.Encode())
+		}
 
 		ke.PreventDefault()
 	})
