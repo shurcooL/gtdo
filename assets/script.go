@@ -221,6 +221,11 @@ func init() {
 
 	// 'y' keyboard shortcut to get permalink.
 	document.AddEventListener("keydown", false, func(event dom.Event) {
+		// Ignore when command elment has focus (it means the user is typing).
+		if document.ActiveElement().Underlying() == document.GetElementByID("gts-command").Underlying() { // HACK: Uses external package knowledge.
+			return
+		}
+
 		ke := event.(*dom.KeyboardEvent)
 		if ke.Repeat {
 			return
