@@ -6,7 +6,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/shurcooL/go/html_gen"
+	"github.com/shurcooL/htmlg"
 	"golang.org/x/net/html"
 )
 
@@ -19,7 +19,7 @@ func ImportPathElementsHtml(repoImportPath, importPath, rawQuery string) templat
 	var ns []*html.Node
 	for i, element := range elements {
 		if i != 0 {
-			ns = append(ns, html_gen.Text("/"))
+			ns = append(ns, htmlg.Text("/"))
 		}
 
 		path := path.Join(elements[:i+1]...)
@@ -30,13 +30,13 @@ func ImportPathElementsHtml(repoImportPath, importPath, rawQuery string) templat
 				Path:     "/" + path,
 				RawQuery: rawQuery,
 			}
-			ns = append(ns, html_gen.A(element, template.URL(url.String())))
+			ns = append(ns, htmlg.A(element, template.URL(url.String())))
 		} else {
-			ns = append(ns, html_gen.Text(element))
+			ns = append(ns, htmlg.Text(element))
 		}
 	}
 
-	importPathElements, err := html_gen.RenderNodes(ns...)
+	importPathElements, err := htmlg.RenderNodes(ns...)
 	if err != nil {
 		panic(err)
 	}
