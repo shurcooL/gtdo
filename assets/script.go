@@ -48,7 +48,7 @@ func (s selection) Hash() string {
 func MustScrollTo(event dom.Event, targetId string) {
 	target := document.GetElementByID(targetId).(dom.HTMLElement)
 
-	// dom.GetWindow().History().ReplaceState(nil, nil, href)
+	// TODO: dom.GetWindow().History().ReplaceState(...)
 	js.Global.Get("window").Get("history").Call("replaceState", nil, nil, "#"+targetId)
 
 	windowHalfHeight := dom.GetWindow().InnerHeight() * 2 / 5
@@ -81,7 +81,7 @@ func expandLineSelection(event dom.Event, targetId string) string {
 func LineNumber(event dom.Event, targetId string) {
 	targetId = expandLineSelection(event, targetId)
 
-	// dom.GetWindow().History().ReplaceState(nil, nil, href)
+	// TODO: dom.GetWindow().History().ReplaceState(...)
 	js.Global.Get("window").Get("history").Call("replaceState", nil, nil, "#"+targetId)
 
 	processHash(targetId, true)
@@ -205,10 +205,11 @@ func init() {
 
 		processHash(hash, ok)
 	}
+	// Jump to desired hash after page finishes loading (and override browser's default hash jumping).
 	document.AddEventListener("DOMContentLoaded", false, func(_ dom.Event) {
-		// This needs to be in a goroutine or else it "happens too early".
-		// TODO: See if there's a better event than DOMContentLoaded.
 		go func() {
+			// This needs to be in a goroutine or else it "happens too early".
+			// TODO: See if there's a better event than DOMContentLoaded.
 			processHashSet()
 		}()
 	})
@@ -219,39 +220,46 @@ func init() {
 		processHashSet()
 	})
 
-	// 'y' keyboard shortcut to get permalink.
 	document.AddEventListener("keydown", false, func(event dom.Event) {
-		// Ignore when command elment has focus (it means the user is typing).
-		if document.ActiveElement().Underlying() == document.GetElementByID("gts-command").Underlying() { // HACK: Uses external package knowledge.
+		if event.DefaultPrevented() {
+			return
+		}
+		// Ignore when some other elment has focus (it means the user is typing).
+		if event.Target().Underlying() != document.Body().Underlying() {
 			return
 		}
 
-		ke := event.(*dom.KeyboardEvent)
-		if ke.Repeat {
-			return
-		}
-		if ke.KeyCode != 'Y' {
-			return
-		}
+		switch ke := event.(*dom.KeyboardEvent); {
+		// 'y' keyboard shortcut to get permalink.
+		case ke.KeyCode == 'Y' && !ke.Repeat && !ke.CtrlKey && !ke.AltKey && !ke.MetaKey && !ke.ShiftKey: // 'y' keyboard shortcut to get permalink.
+			commitIdEl := document.GetElementByID("commit-id")
+			if commitIdEl == nil {
+				return
+			}
+			commitId := commitIdEl.GetAttribute("title")
+			if commitId == "" {
+				return
+			}
 
-		commitIdEl := document.GetElementByID("commit-id")
-		if commitIdEl == nil {
-			return
-		}
-		commitId := commitIdEl.GetAttribute("title")
-		if commitId == "" {
-			return
-		}
+			// Set revision query parameter to full commit id, if it's not already.
+			query, _ := url.ParseQuery(strings.TrimPrefix(dom.GetWindow().Location().Search, "?"))
+			if query.Get(gtdo.RevisionQueryParameter) != commitId {
+				query.Set(gtdo.RevisionQueryParameter, commitId)
+				// TODO: dom.GetWindow().History().PushState(...)
+				js.Global.Get("window").Get("history").Call("pushState", nil, nil, "?"+query.Encode()+dom.GetWindow().Location().Hash)
+			}
 
-		// Set revision query parameter to full commit id, if it's not already.
-		query, _ := url.ParseQuery(strings.TrimPrefix(dom.GetWindow().Location().Search, "?"))
-		if query.Get(gtdo.RevisionQueryParameter) != commitId {
-			query.Set(gtdo.RevisionQueryParameter, commitId)
-			// TODO: dom.GetWindow().History().PushState(nil, nil, "#"+element.GetAttribute("data-id"))
-			js.Global.Get("window").Get("history").Call("pushState", nil, nil, "?"+query.Encode()+dom.GetWindow().Location().Hash)
-		}
+			ke.PreventDefault()
 
-		ke.PreventDefault()
+		// Escape.
+		case ke.KeyCode == 27 && !ke.Repeat && !ke.CtrlKey && !ke.AltKey && !ke.MetaKey && !ke.ShiftKey:
+			// TODO: dom.GetWindow().History().ReplaceState(...)
+			js.Global.Get("window").Get("history").Call("replaceState", nil, nil, "#")
+
+			processHashSet()
+
+			ke.PreventDefault()
+		}
 	})
 }
 
