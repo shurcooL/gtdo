@@ -1,3 +1,4 @@
+// Command gtdo is the source for gotools.org.
 package main
 
 import (
