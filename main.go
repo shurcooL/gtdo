@@ -33,8 +33,9 @@ import (
 	"github.com/shurcooL/go/gists/gist5639599"
 	"github.com/shurcooL/go/gists/gist7390843"
 	"github.com/shurcooL/go/gists/gist7480523"
-	"github.com/shurcooL/go/gopherjs_http"
+	"github.com/shurcooL/go/gzip_file_server"
 	vcs2 "github.com/shurcooL/go/vcs"
+	"github.com/shurcooL/go/vfs/httpfs/html/vfstemplate"
 	"github.com/shurcooL/go/vfs_util"
 	"github.com/shurcooL/gtdo/gtdo"
 	"github.com/shurcooL/highlight_go"
@@ -72,7 +73,7 @@ func loadTemplates() error {
 		"commitId": func(commitId vcs.CommitID) vcs.CommitID { return commitId[:8] },
 		"time":     humanize.Time,
 	})
-	t, err = t.ParseGlob("./assets/*.tmpl")
+	t, err = vfstemplate.ParseGlob(assets, t, "/assets/*.tmpl")
 	return err
 }
 
@@ -94,32 +95,16 @@ func main() {
 	}
 
 	http.HandleFunc("/", codeHandler)
-	http.Handle("/assets/", http.FileServer(http.Dir(".")))
-
-	// Dev, hot reload.
-	/*http.Handle("/command-r.go.js", gopherjs_http.GoFiles("../frontend/select-list-view/main.go"))
-	http.HandleFunc("/command-r.css", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "../frontend/select-list-view/style.css")
-	})
-	http.Handle("/table-of-contents.go.js", gopherjs_http.GoFiles("../frontend/table-of-contents/main.go"))
-	http.HandleFunc("/table-of-contents.css", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "../frontend/table-of-contents/style.css")
-	})*/
-
-	// HACK: Prod, static.
-	http.Handle("/favicon.ico/", http.NotFoundHandler())
+	http.Handle("/favicon.ico", http.NotFoundHandler())
 	http.HandleFunc("/robots.txt", func(w http.ResponseWriter, req *http.Request) {
 		io.WriteString(w, `User-agent: *
 Disallow: /
 `)
 	})
-	http.HandleFunc("/command-r.css", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "../frontend/select-list-view/style.css")
-	})
-	http.HandleFunc("/table-of-contents.css", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "../frontend/table-of-contents/style.css")
-	})
-	http.Handle("/script.go.js", gopherjs_http.StaticGoFiles("./assets/script.go"))
+	fileServer := gzip_file_server.New(assets)
+	http.Handle("/assets/", fileServer)
+	http.Handle("/assets/select-list-view.css", http.StripPrefix("/assets/", fileServer))
+	http.Handle("/assets/table-of-contents.css", http.StripPrefix("/assets/", fileServer))
 
 	if *stateFileFlag != "" {
 		_ = loadState(*stateFileFlag)
