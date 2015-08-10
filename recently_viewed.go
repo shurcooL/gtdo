@@ -30,32 +30,32 @@ func sendToTop(importPath string) {
 	recentlyViewed.Packages[0] = importPath
 }
 
-func loadState(filename string) error {
-	file, err := os.Open(filename)
+func saveState(path string) error {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer f.Close()
 
-	dec := gob.NewDecoder(file)
-
-	err = dec.Decode(&recentlyViewed.Packages)
-
-	return err
-}
-
-func saveState(filename string) error {
-	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	enc := gob.NewEncoder(file)
+	enc := gob.NewEncoder(f)
 
 	recentlyViewed.lock.RLock()
 	err = enc.Encode(recentlyViewed.Packages)
 	recentlyViewed.lock.RUnlock()
+
+	return err
+}
+
+func loadState(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	dec := gob.NewDecoder(f)
+
+	err = dec.Decode(&recentlyViewed.Packages)
 
 	return err
 }
