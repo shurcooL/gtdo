@@ -1,4 +1,4 @@
-// Command gtdo is the source for gotools.org.
+// gtdo is the source for gotools.org.
 package main
 
 import (
@@ -317,7 +317,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 
 				sort.Sort(anns)
 
-				annSrc, err = annotate.Annotate(src, anns, func(w io.Writer, b []byte) { template.HTMLEscape(w, b) })
+				annSrc, err = annotate.Annotate(src, anns, template.HTMLEscape)
 				if err != nil {
 					panic(err)
 				}

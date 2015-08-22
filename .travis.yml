@@ -1,0 +1,11 @@
+language: go
+go:
+  - 1.5
+install:
+  - go get golang.org/x/tools/cmd/vet
+script:
+  - export GOPATH="$TRAVIS_BUILD_DIR/Godeps/_workspace:$GOPATH"
+  - go get -t -v ./...
+  - #diff -u <(echo -n) <(gofmt -d ./)
+  - #go tool vet -composites=false ./
+  - go test -v -race ./...

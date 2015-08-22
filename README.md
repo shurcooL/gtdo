@@ -1,7 +1,6 @@
-gtdo
-====
+# gtdo [![Build Status](https://travis-ci.org/shurcooL/gtdo.svg?branch=master)](https://travis-ci.org/shurcooL/gtdo) [![GoDoc](https://godoc.org/github.com/shurcooL/gtdo?status.svg)](https://godoc.org/github.com/shurcooL/gtdo)
 
-This project is the source for [gotools.org](http://gotools.org/).
+gtdo is the source for [gotools.org](http://gotools.org/).
 
 ![Screenshot](Screenshot.png)
 
@@ -29,7 +28,7 @@ go get -u -d -tags=js github.com/shurcooL/gtdo/...
 Afterwards, you can build and run the package in development mode, where all assets are always read and processed from disk:
 
 ```bash
-go build -tags=dev github.com/shurcooL/gtdo
+godep go build -tags=dev github.com/shurcooL/gtdo
 ```
 
 When you're done with development, you should run `go generate` before committing:
