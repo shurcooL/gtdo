@@ -224,8 +224,8 @@ func init() {
 		if event.DefaultPrevented() {
 			return
 		}
-		// Ignore when some other elment has focus (it means the user is typing).
-		if event.Target().Underlying() != document.Body().Underlying() {
+		// Ignore when some element other than body has focus (it means the user is typing elsewhere).
+		if !event.Target().IsEqualNode(document.Body()) {
 			return
 		}
 
