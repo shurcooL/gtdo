@@ -10,6 +10,7 @@ import (
 	"golang.org/x/net/html"
 )
 
+// ImportPathElementsHtml renders the HTML of the import path with linkified elements.
 func ImportPathElementsHtml(repoImportPath, importPath, rawQuery string) template.HTML {
 	// Elements of importPath, first element being repoImportPath.
 	// E.g., {"github.com/user/repo", "subpath", "package"}.
@@ -36,9 +37,5 @@ func ImportPathElementsHtml(repoImportPath, importPath, rawQuery string) templat
 		}
 	}
 
-	importPathElements, err := htmlg.RenderNodes(ns...)
-	if err != nil {
-		panic(err)
-	}
-	return importPathElements
+	return htmlg.Render(ns...)
 }
