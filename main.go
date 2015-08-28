@@ -363,7 +363,16 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 // Try local first, if not, try remote, if not, clone/update remote and try one last time.
-func try(importPath, rev string) (source string, bpkg *build.Package, repoImportPath string, commit *vcs.Commit, fs vfs.FileSystem, branchNames []string, defaultBranch string, err error) {
+func try(importPath, rev string) (
+	source string,
+	bpkg *build.Package,
+	repoImportPath string,
+	commit *vcs.Commit,
+	fs vfs.FileSystem,
+	branchNames []string,
+	defaultBranch string,
+	err error,
+) {
 	var repo vcs.Repository
 	var commitId vcs.CommitID
 	if bpkg, fs, err = tryLocalGoroot(importPath, rev); err == nil {
@@ -422,7 +431,11 @@ func try(importPath, rev string) (source string, bpkg *build.Package, repoImport
 	return source, bpkg, repoImportPath, commit, fs, branchNames, defaultBranch, nil
 }
 
-func tryLocalGoroot(importPath, rev string) (bpkg *build.Package, fs vfs.FileSystem, err error) {
+func tryLocalGoroot(importPath, rev string) (
+	bpkg *build.Package,
+	fs vfs.FileSystem,
+	err error,
+) {
 	fs = vfs.OS(filepath.Join(build.Default.GOROOT, "src"))
 
 	// Verify it's an existing folder in GOROOT.
@@ -442,7 +455,13 @@ func tryLocalGoroot(importPath, rev string) (bpkg *build.Package, fs vfs.FileSys
 	return nil, fs, nil
 }
 
-func tryLocalGopath(importPath, rev string) (repo vcs.Repository, repoImportPath string, commitId vcs.CommitID, defaultBranch string, err error) {
+func tryLocalGopath(importPath, rev string) (
+	repo vcs.Repository,
+	repoImportPath string,
+	commitId vcs.CommitID,
+	defaultBranch string,
+	err error,
+) {
 	if *productionFlag {
 		// Disable local for GOPATH packages in production.
 		return nil, "", "", "", errors.New("local for GOPATH packages is disabled")
@@ -517,7 +536,7 @@ func tryRemote(importPath, rev string) (repo vcs.Repository, repoImportPath stri
 		err1 := repo.(vcsclient.RepositoryCloneUpdater).CloneOrUpdate(vcs.RemoteOpts{})
 		fmt.Println("tryRemote: CloneOrUpdate:", err1)
 		if err1 != nil {
-			return nil, "", "", "", MultiError{err, err1}
+			return nil, "", "", "", multipleErrors{err, err1}
 		}
 
 		if rev != "" {
@@ -526,7 +545,7 @@ func tryRemote(importPath, rev string) (repo vcs.Repository, repoImportPath stri
 			commitId, err1 = repo.ResolveBranch(vcsRepo.GetDefaultBranch())
 		}
 		if err1 != nil {
-			return nil, "", "", "", MultiError{err, err1}
+			return nil, "", "", "", multipleErrors{err, err1}
 		}
 		fmt.Println("tryRemote: worked on SECOND try")
 	} else {
@@ -536,7 +555,12 @@ func tryRemote(importPath, rev string) (repo vcs.Repository, repoImportPath stri
 	return repo, repoImportPath, commitId, vcsRepo.GetDefaultBranch(), nil
 }
 
-func importPathToRepoRoot(importPath string) (repoImportPath string, cloneUrl *url.URL, vcsRepo vcs2.Vcs, err error) {
+func importPathToRepoRoot(importPath string) (
+	repoImportPath string,
+	cloneUrl *url.URL,
+	vcsRepo vcs2.Vcs,
+	err error,
+) {
 	rr, err := go_vcs.RepoRootForImportPath(importPath, true)
 	if err != nil {
 		return "", nil, nil, err
@@ -609,11 +633,10 @@ func fullQuery(rawQuery string) string {
 	return "?" + rawQuery
 }
 
-// ---
+// multipleErrors should consist of 2 or more errors.
+type multipleErrors []error
 
-type MultiError []error
-
-func (me MultiError) Error() string {
+func (me multipleErrors) Error() string {
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "%d errors:\n", len(me))
 	for _, err := range me {
