@@ -344,13 +344,17 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		data.Files = template.HTML(buf.String())
 	}
 
-	// Use gzip compression.
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Content-Encoding", "gzip") // TODO: Check "Accept-Encoding"?
-	gw := gzip.NewWriter(w)
-	defer gw.Close()
+	var wr io.Writer = w
+	if isGzipEncodingAccepted(req) {
+		// Use gzip compression.
+		w.Header().Set("Content-Encoding", "gzip")
+		gw := gzip.NewWriter(w)
+		defer gw.Close()
+		wr = gw
+	}
 
-	err = t.ExecuteTemplate(gw, "code.html.tmpl", &data)
+	err = t.ExecuteTemplate(wr, "code.html.tmpl", &data)
 	if err != nil {
 		log.Printf("t.ExecuteTemplate: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -643,4 +647,14 @@ func (me multipleErrors) Error() string {
 		fmt.Fprintln(&buf, err.Error())
 	}
 	return buf.String()
+}
+
+// isGzipEncodingAccepted returns true if the request includes "gzip" under Accept-Encoding header.
+func isGzipEncodingAccepted(req *http.Request) bool {
+	for _, v := range strings.Split(req.Header.Get("Accept-Encoding"), ",") {
+		if strings.TrimSpace(v) == "gzip" {
+			return true
+		}
+	}
+	return false
 }
