@@ -38,6 +38,7 @@ import (
 	"github.com/shurcooL/go/vfs/httpfs/html/vfstemplate"
 	"github.com/shurcooL/go/vfs_util"
 	"github.com/shurcooL/gtdo/gtdo"
+	"github.com/shurcooL/gtdo/page"
 	"github.com/shurcooL/highlight_go"
 	"github.com/shurcooL/sanitized_anchor_name"
 	"github.com/sourcegraph/annotate"
@@ -70,8 +71,10 @@ var t *template.Template
 func loadTemplates() error {
 	var err error
 	t = template.New("").Funcs(template.FuncMap{
-		"commitId": func(commitId vcs.CommitID) vcs.CommitID { return commitId[:8] },
-		"time":     humanize.Time,
+		"commitId":      func(commitId vcs.CommitID) vcs.CommitID { return commitId[:8] },
+		"time":          humanize.Time,
+		"fullQuery":     fullQuery,
+		"importPathURL": importPathURL,
 	})
 	t, err = vfstemplate.ParseGlob(assets, t, "/assets/*.tmpl")
 	return err
@@ -174,7 +177,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 
 	data := struct {
 		Production         bool
-		FullQuery          string // Either blank, or "?query".
+		RawQuery           string
 		ImportPath         string
 		ImportPathElements template.HTML // Import path with linkified elements.
 		Commit             *vcs.Commit
@@ -186,9 +189,9 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		Tests              template.HTML // Checkbox for tests.
 	}{
 		Production:         *productionFlag,
-		FullQuery:          fullQuery(req.URL.RawQuery),
+		RawQuery:           req.URL.RawQuery,
 		ImportPath:         importPath,
-		ImportPathElements: ImportPathElementsHtml(repoImportPath, importPath, req.URL.RawQuery),
+		ImportPathElements: page.ImportPathElementsHTML(repoImportPath, importPath, req.URL.RawQuery),
 		Commit:             commit,
 		DirExists:          fs != nil,
 		Bpkg:               bpkg,
@@ -282,21 +285,13 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 						switch d.Tok {
 						case token.IMPORT:
 							for _, imp := range d.Specs {
-								path := imp.(*ast.ImportSpec).Path
-								pathValue, err := strconv.Unquote(path.Value)
+								pathLit := imp.(*ast.ImportSpec).Path
+								pathValue, err := strconv.Unquote(pathLit.Value)
 								if err != nil {
 									continue
 								}
-								values := req.URL.Query()
-								// If it crosses the repository boundary, do not persist the revision.
-								if !packageInsideRepo(pathValue, repoImportPath) {
-									delete(values, gtdo.RevisionQueryParameter)
-								}
-								url := url.URL{
-									Path:     "/" + pathValue,
-									RawQuery: values.Encode(),
-								}
-								anns = append(anns, annotateNode(fset, path, fmt.Sprintf(`<a href="%s">`, url.String()), `</a>`, 1))
+								url := importPathURL(pathValue, repoImportPath, req.URL.RawQuery)
+								anns = append(anns, annotateNode(fset, pathLit, fmt.Sprintf(`<a href="%s">`, url), `</a>`, 1))
 							}
 						case token.TYPE:
 							for _, spec := range d.Specs {
@@ -622,6 +617,23 @@ func buildContextUsingFS(fs vfs.FileSystem) build.Context {
 	}
 
 	return context
+}
+
+// importPathURL returns a URL to the target importPath, preserving query parameters.
+//
+// It strips out the revision parameter if the target package lies outside of the current repository.
+//func importPathURL(importPath, repoImportPath string, query url.Values) template.URL {
+func importPathURL(importPath, repoImportPath string, rawQuery string) template.URL {
+	query, _ := url.ParseQuery(rawQuery)
+	// If it crosses the repository boundary, do not persist the revision.
+	if !packageInsideRepo(importPath, repoImportPath) {
+		query.Del(gtdo.RevisionQueryParameter)
+	}
+	url := url.URL{
+		Path:     "/" + importPath,
+		RawQuery: query.Encode(),
+	}
+	return template.URL(url.String())
 }
 
 // packageInsideRepo returns true iff importPath package is inside repository repoImportPath.

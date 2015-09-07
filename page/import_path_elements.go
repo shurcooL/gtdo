@@ -1,4 +1,4 @@
-package main
+package page
 
 import (
 	"html/template"
@@ -10,8 +10,8 @@ import (
 	"golang.org/x/net/html"
 )
 
-// ImportPathElementsHtml renders the HTML of the import path with linkified elements.
-func ImportPathElementsHtml(repoImportPath, importPath, rawQuery string) template.HTML {
+// ImportPathElementsHTML renders the HTML of the import path with linkified elements.
+func ImportPathElementsHTML(repoImportPath, importPath, rawQuery string) template.HTML {
 	// Elements of importPath, first element being repoImportPath.
 	// E.g., {"github.com/user/repo", "subpath", "package"}.
 	elements := []string{repoImportPath}

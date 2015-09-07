@@ -1,12 +1,12 @@
-package main_test
+package page_test
 
 import (
 	"fmt"
 
-	gtdo "github.com/shurcooL/gtdo"
+	"github.com/shurcooL/gtdo/page"
 )
 
-func ExampleImportPathElementsHtml() {
+func ExampleImportPathElementsHTML() {
 	inputs := []struct {
 		repoImportPath string
 		importPath     string
@@ -20,7 +20,7 @@ func ExampleImportPathElementsHtml() {
 	}
 
 	for _, i := range inputs {
-		html := gtdo.ImportPathElementsHtml(i.repoImportPath, i.importPath, "")
+		html := page.ImportPathElementsHTML(i.repoImportPath, i.importPath, "")
 		fmt.Println(html)
 	}
 

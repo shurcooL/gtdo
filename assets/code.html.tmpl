@@ -16,17 +16,17 @@
 					<div style="padding: 30px;">
 						<h1>{{.ImportPathElements}}</h1>
 						{{with .Commit}}<p>Commit {{template "commitId" .ID}} from {{template "time" .Author.Date}}.</p>{{end}}
-						<p>{{with .Branches}}<span class="spacing" title="Branch"><span class="octicon octicon-git-branch" style="margin-right: 8px;"></span>{{.}}</span>{{end}}
-						<span class="spacing" title="Display Test Files"><label>{{.Tests}}Tests</label></span></p>
+						{{with .Branches}}<p><span class="spacing" title="Branch"><span class="octicon octicon-git-branch" style="margin-right: 8px;"></span>{{.}}</span></p>{{end}}
 						{{if .Folders}}
-							<ul>{{range .Folders}}<li><a href="/{{$.ImportPath}}/{{.}}{{$.FullQuery}}">{{.}}</a></li>{{end}}</ul>
+							<ul>{{range .Folders}}<li><a href="/{{$.ImportPath}}/{{.}}{{fullQuery $.RawQuery}}">{{.}}</a></li>{{end}}</ul>
+						{{end}}
+						<p><span class="spacing" title="Display Test Files"><label>{{.Tests}}Tests</label></span></p>
+						{{if not .DirExists}}
+							<div style="margin-top: 20px;"><i>(this subdirectory doesn't exist, maybe it exists on another branch?)</i></div>
 						{{end}}
 						{{if .Bpkg}}
 							{{/*<h1>{{if .Bpkg.IsCommand}}Command{{else}}Package{{end}} {{.Bpkg.Name}}</h1>*/}}
 							{{.Files}}
-						{{end}}
-						{{if not .DirExists}}
-							<div style="margin-top: 20px;"><i>(this subdirectory doesn't exist, maybe it exists on another branch?)</i></div>
 						{{end}}
 					</div>
 				</div>
