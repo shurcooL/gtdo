@@ -24,6 +24,29 @@ div.center-max-width {
 	margin-right: auto;
 }
 
+nav {
+	font-size: 14px;
+	margin: 16px 0 16px 0;
+}
+nav a, nav a:hover {
+	color: black; text-decoration: none;
+	display: inline-block;
+	padding: 6px 14px 6px 14px;
+}
+nav a:hover {
+	background-color: #eee;
+}
+nav a.selected {
+	cursor: default;
+	color: white;
+	background-color: #4078c0;
+}
+nav .beta {
+	margin-left: 4px;
+	vertical-align: bottom;
+    font-size: 65%;
+}
+
 article {
 	font-size: 16px;
 	line-height: 1.6;
@@ -117,6 +140,7 @@ pre.file {
 
 .highlight pre {
 	font-family: Menlo, monospace;
+	font-size: 12px;
 	padding: 10px;
 	margin: 0;
 }

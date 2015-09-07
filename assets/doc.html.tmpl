@@ -16,19 +16,25 @@
 					<div style="padding: 30px;">
 						<h1>{{.ImportPathElements}}</h1>
 						{{with .Commit}}<p>Commit {{template "commitId" .ID}} from {{template "time" .Author.Date}}.</p>{{end}}
-						{{with .Branches}}<p><span class="spacing" title="Branch"><span class="octicon octicon-git-branch" style="margin-right: 8px;"></span>{{.}}</span></p>{{end}}
+						<p>{{with .Branches}}<span class="spacing" title="Branch"><span class="octicon octicon-git-branch" style="margin-right: 8px;"></span>{{.}}</span>{{end}}</p>
 						{{if .Folders}}
 							<ul>{{range .Folders}}<li><a href="/{{$.ImportPath}}/{{.}}{{fullQuery $.RawQuery}}">{{.}}</a></li>{{end}}</ul>
 						{{end}}
 						<nav id="tabs">{{.Tabs}}</nav>
-						<p><span class="spacing" title="Display Test Files"><label>{{.Tests}}Tests</label></span></p>
 						{{if not .DirExists}}
 							<div style="margin-top: 20px;"><i>(this subdirectory doesn't exist, maybe it exists on another branch?)</i></div>
 						{{end}}
-						{{if .Bpkg}}
-							{{/*<h1>{{if .Bpkg.IsCommand}}Command{{else}}Package{{end}} {{.Bpkg.Name}}</h1>*/}}
-							{{.Files}}
+						<article style="margin-top: 30px;">
+						{{with .Dpkg}}
+							<p>{{$.DocSummary}}</p>
+							<div>
+								<h3>Imports</h3>
+								<ul>{{range .Imports}}<li><a href="{{importPathURL . $.RepoImportPath $.RawQuery}}"><code>{{.}}</code></a></li>{{end}}</ul>
+							</div>
+						{{else}}
+							<div>No docs.</div>
 						{{end}}
+						</article>
 					</div>
 				</div>
 			</div>

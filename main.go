@@ -161,6 +161,11 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	if req.URL.Query().Get("tab") == "doc" {
+		docHandler(w, req)
+		return
+	}
+
 	importPath := req.URL.Path[1:]
 	rev := req.URL.Query().Get(gtdo.RevisionQueryParameter)
 	_, includeTestFiles := req.URL.Query()[testsQueryParameter]
@@ -178,6 +183,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	data := struct {
 		Production         bool
 		RawQuery           string
+		Tabs               template.HTML
 		ImportPath         string
 		ImportPathElements template.HTML // Import path with linkified elements.
 		Commit             *vcs.Commit
@@ -190,6 +196,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	}{
 		Production:         *productionFlag,
 		RawQuery:           req.URL.RawQuery,
+		Tabs:               page.Tabs(req.URL.Path, req.URL.RawQuery),
 		ImportPath:         importPath,
 		ImportPathElements: page.ImportPathElementsHTML(repoImportPath, importPath, req.URL.RawQuery),
 		Commit:             commit,
