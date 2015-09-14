@@ -118,6 +118,28 @@ h1:hover .anchor, h2:hover .anchor, h3:hover .anchor, h4:hover .anchor, h5:hover
 	background-color: #eeeeee;
 }
 
+div.outdated {
+	font-size: 14px;
+	background-color: rgb(255, 249, 236);
+	border: 1px solid rgb(224, 216, 196);
+	border-radius: 3px;
+	padding: 12px;
+}
+div.outdated span.content {
+	display: table-cell;
+	width: 100%;
+}
+div.outdated span.close {
+	display: table-cell;
+	padding-left: 8px;
+}
+div.outdated span.close a {
+	color: #bbb;
+}
+div.outdated span.close a:hover {
+	color: black;
+}
+
 * {
 	tab-size: 4;
 }

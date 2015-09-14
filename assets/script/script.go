@@ -183,9 +183,14 @@ func offsetTopRoot(e dom.HTMLElement) float64 {
 	return offsetTopRoot
 }
 
+func HideOutdatedBox() {
+	document.GetElementByID("outdated-box").(dom.HTMLElement).Style().SetProperty("display", "none", "")
+}
+
 func init() {
 	js.Global.Set("MustScrollTo", jsutil.Wrap(MustScrollTo))
 	js.Global.Set("LineNumber", jsutil.Wrap(LineNumber))
+	js.Global.Set("HideOutdatedBox", HideOutdatedBox)
 
 	processHashSet := func() {
 		// Scroll to hash target.

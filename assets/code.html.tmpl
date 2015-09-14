@@ -15,6 +15,7 @@
 				<div style="padding-bottom: 50px;">
 					<div style="padding: 30px;">
 						<h1>{{.ImportPathElements}}</h1>
+						{{template "outdated" $}}
 						{{with .Commit}}<p>Commit {{template "commitId" .ID}} from {{template "time" .Author.Date.Time}}.</p>{{end}}
 						{{with .Branches}}<p><span class="spacing" title="Branch"><span class="octicon octicon-git-branch" style="margin-right: 8px;"></span>{{.}}</span></p>{{end}}
 						{{if .Folders}}
