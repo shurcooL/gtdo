@@ -26,7 +26,7 @@ func docHandler(w http.ResponseWriter, req *http.Request) {
 
 	log.Printf("req: importPath=%q rev=%q.\n", importPath, rev)
 
-	source, bpkg, repoImportPath, commit, fs, branches, defaultBranch, err := try(importPath, rev)
+	source, bpkg, repoSpec, repoImportPath, commit, fs, branches, defaultBranch, err := try(importPath, rev)
 	log.Println("using source:", source)
 	if err != nil {
 		log.Println("try:", err)
@@ -113,6 +113,9 @@ func docHandler(w http.ResponseWriter, req *http.Request) {
 
 	if bpkg != nil {
 		sendToTop(bpkg.ImportPath)
+	}
+	if RepoUpdater != nil && repoSpec != nil {
+		RepoUpdater.Enqueue(*repoSpec)
 	}
 }
 
