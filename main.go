@@ -7,6 +7,10 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"go/ast"
+	"go/build"
+	"go/parser"
+	"go/token"
 	"html/template"
 	"io"
 	"io/ioutil"
@@ -22,14 +26,11 @@ import (
 	"strings"
 	"syscall"
 
-	"go/ast"
-	"go/build"
-	"go/parser"
-	"go/token"
-
 	"github.com/dustin/go-humanize"
 	"github.com/shurcooL/frontend/checkbox"
 	"github.com/shurcooL/frontend/select_menu"
+	"github.com/shurcooL/go/exp/12"
+	"github.com/shurcooL/go/gists/gist5504644"
 	"github.com/shurcooL/go/gists/gist5639599"
 	"github.com/shurcooL/go/gists/gist7390843"
 	"github.com/shurcooL/go/gists/gist7480523"
@@ -435,14 +436,15 @@ func try(importPath, rev string) (
 	fs = vfs_util.NewPrefixFS(fs, "/virtual-go-workspace/src/"+repoImportPath)
 
 	// Verify the import path is an existing subdirectory (it may exist on one branch, but not another).
-	if fi, err := fs.Stat("/virtual-go-workspace/src/" + importPath); !(err == nil && fi.IsDir()) {
+	if fi, err := fs.Stat("/virtual-go-workspace/src/" + importPath); err != nil || !fi.IsDir() {
 		return source, nil, repoSpec, repoImportPath, nil, nil, branchNames, defaultBranch, nil
 	}
 
 	context := buildContextUsingFS(fs)
 	context.GOPATH = "/virtual-go-workspace"
 	bpkg, err = context.Import(importPath, "", 0)
-	if err != nil {
+	//if err != nil {
+	if bpkg == nil || bpkg.Dir == "" {
 		return source, nil, repoSpec, repoImportPath, commit, fs, branchNames, defaultBranch, nil
 	}
 
@@ -457,7 +459,7 @@ func tryLocalGoroot(importPath, rev string) (
 	fs = vfs.OS(filepath.Join(build.Default.GOROOT, "src"))
 
 	// Verify it's an existing folder in GOROOT.
-	if fi, err := fs.Stat(importPath); !(err == nil && fi.IsDir()) {
+	if fi, err := fs.Stat(importPath); err != nil || !fi.IsDir() {
 		return nil, nil, errors.New("package is not in GOROOT")
 	}
 
@@ -473,6 +475,32 @@ func tryLocalGoroot(importPath, rev string) (
 	return nil, fs, nil
 }
 
+func goPackageFromImportPath(importPath string) *gist7480523.GoPackage {
+	bpkg, bpkgErr := gist5504644.BuildPackageFromImportPath(importPath)
+	/*if bpkgErr != nil {
+		if _, noGo := bpkgErr.(*build.NoGoError); noGo || bpkg.Dir == "" {
+			return nil
+		}
+	}*/
+	if bpkg == nil || bpkg.Dir == "" {
+		return nil
+	}
+
+	if bpkg.ConflictDir != "" {
+		fmt.Fprintf(os.Stderr, "warning: ConflictDir=%q (Dir=%q)\n", bpkg.ConflictDir, bpkg.Dir)
+		return nil
+	}
+
+	goPackage := &gist7480523.GoPackage{
+		Bpkg:    bpkg,
+		BpkgErr: bpkgErr,
+
+		Dir: exp12.LookupDirectory(bpkg.Dir),
+	}
+
+	return goPackage
+}
+
 func tryLocalGopath(importPath, rev string) (
 	repo vcs.Repository,
 	repoImportPath string,
@@ -485,7 +513,19 @@ func tryLocalGopath(importPath, rev string) (
 		return nil, "", "", "", errors.New("local for GOPATH packages is disabled in production")
 	}
 
-	goPackage := gist7480523.GoPackageFromImportPath(importPath)
+	repoRoot, err := importPathToRepoRootLocal(importPath)
+	if err != nil {
+		// TODO: Handle when a Go package is in local GOPATH workspace but not inside a VCS.
+		return nil, "", "", "", fmt.Errorf("no local repo for %q", importPath)
+	}
+
+	repoImportPath = repoRoot.repoImportPath
+	repo, err = vcs.Open(repoRoot.vcsRepo.Type().VcsType(), repoRoot.rootPath)
+	if err != nil {
+		return nil, "", "", "", fmt.Errorf("vcs.Open: %v", err)
+	}
+
+	/*goPackage := goPackageFromImportPath(importPath)
 	if goPackage == nil {
 		return nil, "", "", "", errors.New("no local go package")
 	}
@@ -504,12 +544,12 @@ func tryLocalGopath(importPath, rev string) (
 	repo, err = vcs.Open(goPackage.Dir.Repo.Vcs.Type().VcsType(), rootPath)
 	if err != nil {
 		return nil, "", "", "", err
-	}
+	}*/
 
 	if rev != "" {
 		commitId, err = repo.ResolveRevision(rev)
 	} else {
-		commitId, err = repo.ResolveBranch(goPackage.Dir.Repo.Vcs.GetDefaultBranch())
+		commitId, err = repo.ResolveBranch(repoRoot.vcsRepo.GetDefaultBranch())
 	}
 	if err != nil {
 		return nil, "", "", "", err
@@ -522,12 +562,14 @@ func tryLocalGopath(importPath, rev string) (
 			return nil, "", "", "", err
 		}
 
-		if fi, err := fs.Stat("."); !(err == nil && fi.IsDir()) {
+		if fi, err := fs.Stat("."); err != nil || !fi.IsDir() {
 			return nil, "", "", "", err
 		}
 	}
 
-	return repo, repoImportPath, commitId, goPackage.Dir.Repo.Vcs.GetDefaultBranch(), nil
+	// TODO: Should probably check it's an existing subfolder in the repo on the specified branch, otherwise should go to remote, yeah?
+
+	return repo, repoImportPath, commitId, repoRoot.vcsRepo.GetDefaultBranch(), nil
 }
 
 func tryRemote(importPath, rev string) (
@@ -610,6 +652,37 @@ func importPathToRepoRoot(importPath string) (
 	}
 
 	return repoImportPath, cloneURL, vcsRepo, nil
+}
+
+type repoRootLocal struct {
+	repoImportPath string
+	rootPath       string
+	vcsRepo        vcs2.Vcs
+}
+
+// importPathToRepoRootLocal assumes no duplicate overlapping repositories.
+func importPathToRepoRootLocal(importPath string) (repoRootLocal, error) {
+	importPathElements := strings.Split(importPath, "/")
+	gopathEntries := filepath.SplitList(build.Default.GOPATH)
+
+	for idx := range importPathElements {
+		for _, gopathEntry := range gopathEntries {
+			repoImportPath := path.Join(importPathElements[:idx+1]...)
+			rootPath := filepath.Join(gopathEntry, "src", filepath.FromSlash(repoImportPath))
+			vcsRepo := vcs2.New(rootPath)
+			if vcsRepo == nil {
+				continue
+			}
+
+			return repoRootLocal{
+				repoImportPath: repoImportPath,
+				rootPath:       rootPath,
+				vcsRepo:        vcsRepo,
+			}, nil
+		}
+	}
+
+	return repoRootLocal{}, os.ErrNotExist
 }
 
 func buildContextUsingFS(fs vfs.FileSystem) build.Context {
