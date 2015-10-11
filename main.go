@@ -394,7 +394,7 @@ func try(importPath, rev string) (
 ) {
 	var repo vcs.Repository
 	var commitId vcs.CommitID
-	if bpkg, fs, err = tryLocalGoroot(importPath, rev); err == nil {
+	if bpkg, fs, err = tryLocalGoroot(importPath); err == nil {
 		// Use local GOROOT package.
 		source = "goroot"
 		repoImportPath = strings.Split(importPath, "/")[0]
@@ -402,6 +402,11 @@ func try(importPath, rev string) (
 	} else if repo, repoImportPath, commitId, defaultBranch, err = tryLocalGopath(importPath, rev); err == nil {
 		// Use local GOPATH package.
 		source = "gopath"
+	} else if bpkg, fs, err = tryLocalGopathNoVCS(importPath); err == nil {
+		// Use local GOPATH package (without VCS).
+		source = "gopath (no vcs)"
+		repoImportPath = importPath
+		return source, bpkg, nil, repoImportPath, nil, fs, nil, "", nil
 	} else if repo, repoSpec, repoImportPath, commitId, defaultBranch, err = tryRemote(importPath, rev); err == nil { // If local didn't work, try remote...
 		// Use remote.
 		source = "remote"
@@ -443,7 +448,6 @@ func try(importPath, rev string) (
 	context := buildContextUsingFS(fs)
 	context.GOPATH = "/virtual-go-workspace"
 	bpkg, err = context.Import(importPath, "", 0)
-	//if err != nil {
 	if bpkg == nil || bpkg.Dir == "" {
 		return source, nil, repoSpec, repoImportPath, commit, fs, branchNames, defaultBranch, nil
 	}
@@ -451,7 +455,7 @@ func try(importPath, rev string) (
 	return source, bpkg, repoSpec, repoImportPath, commit, fs, branchNames, defaultBranch, nil
 }
 
-func tryLocalGoroot(importPath, rev string) (
+func tryLocalGoroot(importPath string) (
 	bpkg *build.Package,
 	fs vfs.FileSystem,
 	err error,
@@ -477,11 +481,6 @@ func tryLocalGoroot(importPath, rev string) (
 
 func goPackageFromImportPath(importPath string) *gist7480523.GoPackage {
 	bpkg, bpkgErr := gist5504644.BuildPackageFromImportPath(importPath)
-	/*if bpkgErr != nil {
-		if _, noGo := bpkgErr.(*build.NoGoError); noGo || bpkg.Dir == "" {
-			return nil
-		}
-	}*/
 	if bpkg == nil || bpkg.Dir == "" {
 		return nil
 	}
@@ -515,7 +514,6 @@ func tryLocalGopath(importPath, rev string) (
 
 	repoRoot, err := importPathToRepoRootLocal(importPath)
 	if err != nil {
-		// TODO: Handle when a Go package is in local GOPATH workspace but not inside a VCS.
 		return nil, "", "", "", fmt.Errorf("no local repo for %q", importPath)
 	}
 
@@ -524,27 +522,6 @@ func tryLocalGopath(importPath, rev string) (
 	if err != nil {
 		return nil, "", "", "", fmt.Errorf("vcs.Open: %v", err)
 	}
-
-	/*goPackage := goPackageFromImportPath(importPath)
-	if goPackage == nil {
-		return nil, "", "", "", errors.New("no local go package")
-	}
-
-	if goPackage.Bpkg.Goroot {
-		return nil, "", "", "", errors.New("package in GOROOT, but we're looking in GOPATH only")
-	}
-
-	goPackage.UpdateVcs()
-	if goPackage.Dir.Repo == nil {
-		return nil, "", "", "", errors.New("no local vcs root path")
-	}
-	rootPath := goPackage.Dir.Repo.Vcs.RootPath()
-	repoImportPath = gist7480523.GetRepoImportPath(rootPath, goPackage.Bpkg.SrcRoot)
-
-	repo, err = vcs.Open(goPackage.Dir.Repo.Vcs.Type().VcsType(), rootPath)
-	if err != nil {
-		return nil, "", "", "", err
-	}*/
 
 	if rev != "" {
 		commitId, err = repo.ResolveRevision(rev)
@@ -567,9 +544,37 @@ func tryLocalGopath(importPath, rev string) (
 		}
 	}
 
-	// TODO: Should probably check it's an existing subfolder in the repo on the specified branch, otherwise should go to remote, yeah?
-
 	return repo, repoImportPath, commitId, repoRoot.vcsRepo.GetDefaultBranch(), nil
+}
+
+func tryLocalGopathNoVCS(importPath string) (
+	bpkg *build.Package,
+	fs vfs.FileSystem,
+	err error,
+) {
+	if *productionFlag {
+		// Disable local for GOPATH packages in production.
+		return nil, nil, errors.New("local for GOPATH packages is disabled in production")
+	}
+
+	// Handle when a Go package is in local GOPATH workspace but not inside a VCS.
+	bpkg, _ = build.Import(importPath, "", build.FindOnly)
+	if bpkg == nil || bpkg.Dir == "" {
+		return nil, nil, errors.New("package is not in GOPATH")
+	}
+
+	fs = vfs.OS(bpkg.SrcRoot)
+
+	fs = vfs_util.NewPrefixFS(fs, "/virtual-go-workspace/src")
+
+	context := buildContextUsingFS(fs)
+	context.GOPATH = "/virtual-go-workspace"
+	bpkg, err1 := context.Import(importPath, "", 0)
+	if err1 == nil {
+		return bpkg, fs, nil
+	}
+
+	return nil, fs, nil
 }
 
 func tryRemote(importPath, rev string) (
@@ -662,12 +667,12 @@ type repoRootLocal struct {
 
 // importPathToRepoRootLocal assumes no duplicate overlapping repositories.
 func importPathToRepoRootLocal(importPath string) (repoRootLocal, error) {
-	importPathElements := strings.Split(importPath, "/")
+	elems := strings.Split(importPath, "/")
 	gopathEntries := filepath.SplitList(build.Default.GOPATH)
 
-	for idx := range importPathElements {
+	for idx := range elems {
 		for _, gopathEntry := range gopathEntries {
-			repoImportPath := path.Join(importPathElements[:idx+1]...)
+			repoImportPath := path.Join(elems[:idx+1]...)
 			rootPath := filepath.Join(gopathEntry, "src", filepath.FromSlash(repoImportPath))
 			vcsRepo := vcs2.New(rootPath)
 			if vcsRepo == nil {
