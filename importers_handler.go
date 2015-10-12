@@ -45,7 +45,7 @@ func importersHandler(w http.ResponseWriter, req *http.Request) {
 		RepoImportPath     string
 		DirExists          bool
 		Bpkg               *build.Package
-		Importers          *u5.Importers
+		Importers          u5.Importers
 		Folders            []string
 	}{
 		Production:         *productionFlag,
