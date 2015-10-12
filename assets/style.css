@@ -47,12 +47,22 @@ nav .beta {
     font-size: 65%;
 }
 
-article {
+article.home-page {
 	font-size: 16px;
 	line-height: 1.6;
 }
-article > *:first-child {
+article.home-page > *:first-child {
 	margin-top: 0;
+}
+
+article.tool-page {
+	font-size: 14px;
+}
+.doc-summary pre {
+	background-color: #f5f5f5;
+	border: 1px solid #ccc;
+	border-radius: 4px;
+	padding: 8px;
 }
 
 span.spacing {

@@ -170,8 +170,12 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if req.URL.Query().Get("tab") == "doc" {
-		docHandler(w, req)
+	switch req.URL.Query().Get("tab") {
+	case "summary":
+		summaryHandler(w, req)
+		return
+	case "imports":
+		importsHandler(w, req)
 		return
 	}
 

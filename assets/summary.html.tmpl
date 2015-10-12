@@ -1,0 +1,40 @@
+<html>
+	<head>
+		<title>{{.ImportPath}} - Go Code</title>
+		<link href="/assets/style.css" rel="stylesheet" type="text/css" />
+		<link href="/assets/select-list-view.css" media="all" rel="stylesheet" type="text/css" />
+		<link href="/assets/table-of-contents.css" media="all" rel="stylesheet" type="text/css" />
+		{{if .Production}}{{template "GA"}}{{end}}
+		<script type="text/javascript" src="/assets/script/script.js"></script>
+		<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/octicons/2.2.0/octicons.css">
+	</head>
+	<body>
+		<div style="position: relative; min-height: 100%;">
+			{{template "header"}}
+			<div class="center-max-width">
+				<div style="padding-bottom: 50px;">
+					<div style="padding: 30px;">
+						<h1>{{.ImportPathElements}}</h1>
+						{{with .Commit}}<p>Commit {{template "commitId" .ID}} from {{template "time" .Author.Date}}.</p>{{end}}
+						<p>{{with .Branches}}<span class="spacing" title="Branch"><span class="octicon octicon-git-branch" style="margin-right: 8px;"></span>{{.}}</span>{{end}}</p>
+						{{if .Folders}}
+							<ul>{{range .Folders}}<li><a href="/{{$.ImportPath}}/{{.}}{{fullQuery $.RawQuery}}">{{.}}</a></li>{{end}}</ul>
+						{{end}}
+						<nav id="tabs">{{.Tabs}}</nav>
+						{{if not .DirExists}}
+							<div style="margin-top: 20px;"><i>(this subdirectory doesn't exist, maybe it exists on another branch?)</i></div>
+						{{end}}
+						<article class="tool-page" style="margin-top: 30px;">
+						{{with .Dpkg}}
+							<article class="doc-summary">{{$.DocHTML}}</article>
+						{{else}}
+							<div>No docs.</div>
+						{{end}}
+						</article>
+					</div>
+				</div>
+			</div>
+			{{template "footer"}}
+		</div>
+	</body>
+</html>

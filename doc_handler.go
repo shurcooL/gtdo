@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"compress/gzip"
 	"go/ast"
 	"go/build"
@@ -20,7 +21,7 @@ import (
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 )
 
-func docHandler(w http.ResponseWriter, req *http.Request) {
+func summaryHandler(w http.ResponseWriter, req *http.Request) {
 	importPath := req.URL.Path[1:]
 	rev := req.URL.Query().Get(gtdo.RevisionQueryParameter)
 
@@ -45,7 +46,7 @@ func docHandler(w http.ResponseWriter, req *http.Request) {
 		DirExists          bool
 		Bpkg               *build.Package
 		Dpkg               *doc.Package
-		DocSummary         string
+		DocHTML            template.HTML
 		Folders            []string
 		Branches           template.HTML // Select menu for branches.
 	}{
@@ -85,10 +86,9 @@ func docHandler(w http.ResponseWriter, req *http.Request) {
 		if dpkg, err := docPackage(fs, bpkg); err == nil {
 			data.Dpkg = dpkg
 
-			/*var buf bytes.Buffer
+			var buf bytes.Buffer
 			doc.ToHTML(&buf, dpkg.Doc, nil)
-			data.DocHTML = template.HTML(buf.String())*/
-			data.DocSummary = doc.Synopsis(dpkg.Doc)
+			data.DocHTML = template.HTML(buf.String())
 		} else {
 			log.Println(err)
 		}
@@ -104,7 +104,100 @@ func docHandler(w http.ResponseWriter, req *http.Request) {
 		wr = gw
 	}
 
-	err = t.ExecuteTemplate(wr, "doc.html.tmpl", &data)
+	err = t.ExecuteTemplate(wr, "summary.html.tmpl", &data)
+	if err != nil {
+		log.Printf("t.ExecuteTemplate: %v\n", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if bpkg != nil {
+		sendToTop(bpkg.ImportPath)
+	}
+	if RepoUpdater != nil && repoSpec != nil {
+		RepoUpdater.Enqueue(*repoSpec)
+	}
+}
+
+func importsHandler(w http.ResponseWriter, req *http.Request) {
+	importPath := req.URL.Path[1:]
+	rev := req.URL.Query().Get(gtdo.RevisionQueryParameter)
+
+	log.Printf("req: importPath=%q rev=%q.\n", importPath, rev)
+
+	source, bpkg, repoSpec, repoImportPath, commit, fs, branches, defaultBranch, err := try(importPath, rev)
+	log.Println("using source:", source)
+	if err != nil {
+		log.Println("try:", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	data := struct {
+		Production         bool
+		RawQuery           string
+		Tabs               template.HTML
+		ImportPath         string
+		ImportPathElements template.HTML // Import path with linkified elements.
+		RepoImportPath     string
+		Commit             *vcs.Commit
+		DirExists          bool
+		Bpkg               *build.Package
+		Dpkg               *doc.Package
+		Folders            []string
+		Branches           template.HTML // Select menu for branches.
+	}{
+		Production:         *productionFlag,
+		RawQuery:           req.URL.RawQuery,
+		Tabs:               page.Tabs(req.URL.Path, req.URL.RawQuery),
+		ImportPath:         importPath,
+		ImportPathElements: page.ImportPathElementsHTML(repoImportPath, importPath, req.URL.RawQuery),
+		RepoImportPath:     repoImportPath,
+		Commit:             commit,
+		DirExists:          fs != nil,
+		Bpkg:               bpkg,
+	}
+
+	// Folders.
+	if fs != nil {
+		fis, err := fs.ReadDir("/virtual-go-workspace/src/" + importPath)
+		if err != nil {
+			log.Println("fs.ReadDir(importPath):", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		for _, fi := range fis {
+			if !fi.IsDir() {
+				continue
+			}
+			data.Folders = append(data.Folders, fi.Name())
+		}
+	}
+
+	// Branches.
+	if len(branches) != 0 {
+		data.Branches = select_menu.New(branches, defaultBranch, req.URL.Query(), gtdo.RevisionQueryParameter)
+	}
+
+	if fs != nil && bpkg != nil {
+		if dpkg, err := docPackage(fs, bpkg); err == nil {
+			data.Dpkg = dpkg
+		} else {
+			log.Println(err)
+		}
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	var wr io.Writer = w
+	if isGzipEncodingAccepted(req) {
+		// Use gzip compression.
+		w.Header().Set("Content-Encoding", "gzip")
+		gw := gzip.NewWriter(w)
+		defer gw.Close()
+		wr = gw
+	}
+
+	err = t.ExecuteTemplate(wr, "imports.html.tmpl", &data)
 	if err != nil {
 		log.Printf("t.ExecuteTemplate: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

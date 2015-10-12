@@ -24,9 +24,8 @@
 						{{if not .DirExists}}
 							<div style="margin-top: 20px;"><i>(this subdirectory doesn't exist, maybe it exists on another branch?)</i></div>
 						{{end}}
-						<article style="margin-top: 30px;">
+						<article class="tool-page" style="margin-top: 30px;">
 						{{with .Dpkg}}
-							<p>{{$.DocSummary}}</p>
 							<div>
 								<h3>Imports</h3>
 								<ul>{{range .Imports}}<li><a href="{{importPathURL . $.RepoImportPath $.RawQuery}}"><code>{{.}}</code></a></li>{{end}}</ul>

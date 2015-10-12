@@ -21,7 +21,11 @@ func Tabs(path string, rawQuery string) template.HTML {
 		id   string
 		name string
 		beta bool
-	}{{id: "", name: "Code"}, {id: "doc", name: "Doc", beta: true}} {
+	}{
+		{id: "summary", name: "Summary"},
+		{id: "", name: "Source Code"},
+		{id: "imports", name: "Imports"},
+	} {
 		a := &html.Node{Type: html.ElementNode, Data: atom.A.String()}
 		if tab.id == selectedTab {
 			a.Attr = []html.Attribute{{Key: atom.Class.String(), Val: "selected"}}
