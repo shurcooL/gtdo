@@ -1,0 +1,43 @@
+<html>
+	<head>
+		<title>{{.ImportPath}} - Go Code</title>
+		<link href="/assets/style.css" rel="stylesheet" type="text/css" />
+		<link href="/assets/select-list-view.css" media="all" rel="stylesheet" type="text/css" />
+		<link href="/assets/table-of-contents.css" media="all" rel="stylesheet" type="text/css" />
+		{{if .Production}}{{template "GA"}}{{end}}
+		<script type="text/javascript" src="/assets/script/script.js"></script>
+		<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/octicons/2.2.0/octicons.css">
+	</head>
+	<body>
+		<div style="position: relative; min-height: 100%;">
+			{{template "header"}}
+			<div class="center-max-width">
+				<div style="padding-bottom: 50px;">
+					<div style="padding: 30px;">
+						<h1>{{.ImportPathElements}}</h1>
+						{{if .Folders}}
+							<ul>{{range .Folders}}<li><a href="/{{$.ImportPath}}/{{.}}{{fullQuery $.RawQuery}}">{{.}}</a></li>{{end}}</ul>
+						{{end}}
+						<nav id="tabs">{{.Tabs}}</nav>
+						{{if not .DirExists}}
+							<div style="margin-top: 20px;"><i>(this subdirectory doesn't exist, maybe it exists on another branch?)</i></div>
+						{{end}}
+						<article class="tool-page" style="margin-top: 30px;">
+						{{with .Importers}}
+							<div>
+								<h3>Importers</h3>
+								<ul>{{range .Results}}<li><a href="{{importPathURL .Path $.RepoImportPath $.RawQuery}}"><code title="{{.Synopsis}}">{{.Path}}</code></a></li>{{end}}</ul>
+							</div>
+						{{else}}
+							<div>No importers.</div>
+						{{end}}
+						<p><a href="https://godoc.org/{{.ImportPath}}?importers" target="_blank">Source</a>.</p>
+						<p>Note: Importers are based on latest master branch of all repositories, not the currently selected branch.</p>
+						</article>
+					</div>
+				</div>
+			</div>
+			{{template "footer"}}
+		</div>
+	</body>
+</html>

@@ -177,6 +177,9 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	case "imports":
 		importsHandler(w, req)
 		return
+	case "importers":
+		importersHandler(w, req)
+		return
 	}
 
 	importPath := req.URL.Path[1:]
