@@ -5,6 +5,10 @@
 		<link href="/assets/select-list-view.css" media="all" rel="stylesheet" type="text/css" />
 		<link href="/assets/table-of-contents.css" media="all" rel="stylesheet" type="text/css" />
 		{{if .Production}}{{template "GA"}}{{end}}
+		<script type="text/javascript">
+			{{/*var State = {{.FrontendState | json}};*/}}
+			var State = {{.FrontendState}};
+		</script>
 		<script type="text/javascript" src="/assets/script/script.js"></script>
 		<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/octicons/2.2.0/octicons.css">
 	</head>

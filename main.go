@@ -4,6 +4,7 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -67,6 +68,11 @@ func loadTemplates() error {
 		"time":          humanize.Time,
 		"fullQuery":     fullQuery,
 		"importPathURL": importPathURL,
+
+		"json": func(in interface{}) (string, error) {
+			out, err := json.Marshal(in)
+			return string(out), err
+		},
 	})
 	t, err = vfstemplate.ParseGlob(assets, t, "/assets/*.tmpl")
 	return err
@@ -182,7 +188,19 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	frontendState := page.State{
+		ImportPath:   importPath,
+		ProcessedRev: rev,
+	}
+	if frontendState.ProcessedRev == "" && len(branches) != 0 { // THINK: Should I do this? Or maybe just use Rev directly (and work with its empty value)?
+		frontendState.ProcessedRev = defaultBranch
+	}
+	if commit != nil {
+		frontendState.CommitID = string(commit.ID)
+	}
+
 	data := struct {
+		FrontendState      page.State // TODO: Maybe move Production, RawQuery, etc., here?
 		Production         bool
 		RawQuery           string
 		Tabs               template.HTML
@@ -196,6 +214,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		Branches           template.HTML // Select menu for branches.
 		Tests              template.HTML // Checkbox for tests.
 	}{
+		FrontendState:      frontendState,
 		Production:         *productionFlag,
 		RawQuery:           req.URL.RawQuery,
 		Tabs:               page.Tabs(req.URL.Path, req.URL.RawQuery),

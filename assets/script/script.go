@@ -13,8 +13,10 @@ import (
 	_ "github.com/shurcooL/frontend/select-list-view"
 	_ "github.com/shurcooL/frontend/select_menu"
 	_ "github.com/shurcooL/frontend/table-of-contents"
+	"github.com/shurcooL/go-goon"
 	"github.com/shurcooL/go/gopherjs_http/jsutil"
 	"github.com/shurcooL/gtdo/gtdo"
+	"github.com/shurcooL/gtdo/page"
 	"honnef.co/go/js/dom"
 )
 
@@ -266,6 +268,18 @@ func init() {
 			ke.PreventDefault()
 		}
 	})
+
+	/*stateJSON := js.Global.Get("State").String()
+	fmt.Println(stateJSON)
+	var state page.State
+	err := json.Unmarshal([]byte(stateJSON), &state)
+	if err != nil {
+		panic(err)
+	}*/
+	var state page.StateObject
+	state.Object = js.Global.Get("State")
+
+	goon.Dump(state)
 }
 
 func main() {}
