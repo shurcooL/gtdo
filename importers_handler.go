@@ -99,10 +99,5 @@ func importersHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if bpkg != nil {
-		sendToTop(bpkg.ImportPath)
-	}
-	if RepoUpdater != nil && repoSpec != nil {
-		RepoUpdater.Enqueue(*repoSpec)
-	}
+	afterPackageVisit(bpkg, repoSpec)
 }

@@ -112,12 +112,7 @@ func summaryHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if bpkg != nil {
-		sendToTop(bpkg.ImportPath)
-	}
-	if RepoUpdater != nil && repoSpec != nil {
-		RepoUpdater.Enqueue(*repoSpec)
-	}
+	afterPackageVisit(bpkg, repoSpec)
 }
 
 func importsHandler(w http.ResponseWriter, req *http.Request) {
@@ -218,12 +213,7 @@ func importsHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if bpkg != nil {
-		sendToTop(bpkg.ImportPath)
-	}
-	if RepoUpdater != nil && repoSpec != nil {
-		RepoUpdater.Enqueue(*repoSpec)
-	}
+	afterPackageVisit(bpkg, repoSpec)
 }
 
 func docPackage(fs vfs.FileSystem, bpkg *build.Package) (*doc.Package, error) {

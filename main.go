@@ -108,6 +108,34 @@ Disallow: /
 
 	if vs != nil {
 		RepoUpdater = NewRepoUpdater()
+
+		sse = make(map[importPathBranch][]pageViewer)
+		if *productionFlag {
+			// TODO: This is to avoid reverse proxy router issue, can/should it be fixed in a better way?
+			go func() {
+				mux := http.NewServeMux()
+				/*mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+					log.Println("events root:", req.Method, req.URL.Path)
+					w.Header().Set("Access-Control-Allow-Origin", "http://gotools.org")
+				})*/
+				mux.HandleFunc("/-/events", eventsHandler)
+				log.Fatalln(http.ListenAndServe(":26203", mux))
+			}()
+		} else {
+			http.HandleFunc("/-/events", eventsHandler)
+		}
+		if !*productionFlag || true { // TODO: Remove "|| true" after debugging, etc.
+			http.HandleFunc("/-/events.debug", func(w http.ResponseWriter, req *http.Request) {
+				sseMu.Lock()
+				for importPathBranch, pageViewers := range sse {
+					fmt.Fprintf(w, "%#v - %v\n", importPathBranch, len(pageViewers))
+				}
+				if len(sse) == 0 {
+					fmt.Fprintf(w, "-")
+				}
+				sseMu.Unlock()
+			})
+		}
 	}
 
 	stopServerChan := make(chan struct{})
@@ -189,11 +217,16 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	frontendState := page.State{
+		Production:   *productionFlag,
 		ImportPath:   importPath,
 		ProcessedRev: rev,
 	}
-	if frontendState.ProcessedRev == "" && len(branches) != 0 { // THINK: Should I do this? Or maybe just use Rev directly (and work with its empty value)?
+	if frontendState.ProcessedRev == "" && len(branches) != 0 {
 		frontendState.ProcessedRev = defaultBranch
+	}
+	if repoSpec != nil {
+		frontendState.RepoSpec.VCSType = repoSpec.vcsType
+		frontendState.RepoSpec.CloneURL = repoSpec.cloneURL
 	}
 	if commit != nil {
 		frontendState.CommitID = string(commit.ID)
@@ -384,12 +417,16 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	afterPackageVisit(bpkg, repoSpec)
+}
+
+func afterPackageVisit(bpkg *build.Package, repoSpec *repoSpec) {
 	if bpkg != nil && bpkg.Name != "" {
 		sendToTop(bpkg.ImportPath)
 	}
-	if RepoUpdater != nil && repoSpec != nil {
+	/*if RepoUpdater != nil && repoSpec != nil {
 		RepoUpdater.Enqueue(*repoSpec)
-	}
+	}*/
 }
 
 // Try local first, if not, try remote, if not, clone/update remote and try one last time.
@@ -711,14 +748,14 @@ func buildContextUsingFS(fs vfs.FileSystem) build.Context {
 	context.IsAbsPath = path.IsAbs
 	context.SplitPathList = func(list string) []string { return strings.Split(list, ":") }
 	context.IsDir = func(path string) bool {
-		fmt.Printf("context.IsDir %q\n", path)
+		//fmt.Printf("context.IsDir %q\n", path)
 		if fi, err := fs.Stat(path); err == nil && fi.IsDir() {
 			return true
 		}
 		return false
 	}
 	context.HasSubdir = func(root, dir string) (rel string, ok bool) {
-		fmt.Printf("context.HasSubdir %q %q\n", root, dir)
+		//fmt.Printf("context.HasSubdir %q %q\n", root, dir)
 		if context.IsDir(path.Join(root, dir)) {
 			return dir, true
 		} else {
@@ -726,11 +763,11 @@ func buildContextUsingFS(fs vfs.FileSystem) build.Context {
 		}
 	}
 	context.ReadDir = func(dir string) (fi []os.FileInfo, err error) {
-		fmt.Printf("context.ReadDir %q\n", dir)
+		//fmt.Printf("context.ReadDir %q\n", dir)
 		return fs.ReadDir(dir)
 	}
 	context.OpenFile = func(path string) (r io.ReadCloser, err error) {
-		fmt.Printf("context.OpenFile %q\n", path)
+		//fmt.Printf("context.OpenFile %q\n", path)
 		return fs.Open(path)
 	}
 

@@ -8,12 +8,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gopherjs/eventsource"
 	"github.com/gopherjs/gopherjs/js"
 	_ "github.com/shurcooL/frontend/checkbox"
 	_ "github.com/shurcooL/frontend/select-list-view"
 	_ "github.com/shurcooL/frontend/select_menu"
 	_ "github.com/shurcooL/frontend/table-of-contents"
-	"github.com/shurcooL/go-goon"
 	"github.com/shurcooL/go/gopherjs_http/jsutil"
 	"github.com/shurcooL/gtdo/gtdo"
 	"github.com/shurcooL/gtdo/page"
@@ -185,6 +185,10 @@ func offsetTopRoot(e dom.HTMLElement) float64 {
 	return offsetTopRoot
 }
 
+func showOutdatedBox() {
+	document.GetElementByID("outdated-box").(dom.HTMLElement).Style().SetProperty("display", "block", "")
+}
+
 func HideOutdatedBox() {
 	document.GetElementByID("outdated-box").(dom.HTMLElement).Style().SetProperty("display", "none", "")
 }
@@ -279,7 +283,32 @@ func init() {
 	var state page.StateObject
 	state.Object = js.Global.Get("State")
 
-	goon.Dump(state)
+	//goon.Dump(state)
+	//goon.Dump(state.RepoSpec)
+
+	// WIP: EventSource updates.
+	if state.RepoSpec.CloneURL != "" {
+		u := url.URL{
+			Path: "/-/events",
+			RawQuery: url.Values{
+				"ImportPath":        {state.ImportPath},
+				"Branch":            {state.ProcessedRev},
+				"RepoSpec.VCSType":  {state.RepoSpec.VCSType},
+				"RepoSpec.CloneURL": {state.RepoSpec.CloneURL},
+			}.Encode(),
+		}
+		if state.Production {
+			u.Host = "gotools.org:26203"
+		}
+
+		source := eventsource.New(u.String())
+		source.AddEventListener("message", false, func(event *js.Object) {
+			data := event.Get("data").String()
+			if data == "outdated" {
+				showOutdatedBox()
+			}
+		})
+	}
 }
 
 func main() {}

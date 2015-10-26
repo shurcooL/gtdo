@@ -88,17 +88,31 @@ func (ru *repoUpdater) worker() {
 			continue
 		}
 
-		_, err = repo.(vcs.RemoteUpdater).UpdateEverything(vcs.RemoteOpts{})
+		result, err := repo.(vcs.RemoteUpdater).UpdateEverything(vcs.RemoteOpts{})
 		if err != nil {
 			fmt.Println("repoUpdater: UpdateEverything:", err)
 		}
 
 		fmt.Println("taken:", time.Since(started))
+
+		for _, change := range result.Changes {
+			importPathBranch := importPathBranch{
+				importPath: rs.importPath,
+				branch:     change.Branch,
+			}
+			fmt.Println("notifying of update all:", importPathBranch)
+			sseMu.Lock()
+			for _, pv := range sse[importPathBranch] {
+				pv.NotifyOutdated()
+			}
+			sseMu.Unlock()
+		}
 	}
 }
 
 // repoSpec identifies a repository.
 type repoSpec struct {
-	vcsType  string
-	cloneURL string
+	importPath string
+	vcsType    string
+	cloneURL   string
 }
