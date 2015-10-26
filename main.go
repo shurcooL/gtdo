@@ -43,29 +43,20 @@ import (
 	"github.com/shurcooL/httpfs/html/vfstemplate"
 	"github.com/shurcooL/sanitized_anchor_name"
 	"github.com/sourcegraph/annotate"
-	"github.com/sourcegraph/httpcache"
-	"github.com/sourcegraph/syntaxhighlight"
 	"golang.org/x/net/html"
 	go_vcs "golang.org/x/tools/go/vcs"
 	"golang.org/x/tools/godoc/vfs"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 	_ "sourcegraph.com/sourcegraph/go-vcs/vcs/gitcmd"
-	_ "sourcegraph.com/sourcegraph/go-vcs/vcs/hgcmd"
-	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
+	_ "sourcegraph.com/sourcegraph/go-vcs/vcs/hg"
 )
 
-var httpFlag = flag.String("http", ":8080", "Listen for HTTP connections on this address.")
-var productionFlag = flag.Bool("production", false, "Production mode.")
-var vcsstoreHostFlag = flag.String("vcsstore-host", "", "Host of backing vcsstore.")
-var stateFileFlag = flag.String("state-file", "", "File to save/load state.")
-
-var sg *vcsclient.Client
-
-var htmlAnnotator = func() syntaxhighlight.Annotator {
-	var c = syntaxhighlight.HTMLAnnotator(syntaxhighlight.DefaultHTMLConfig)
-	c.Plaintext = "" // Do not annotate plain text since it's not decorated.
-	return c
-}()
+var (
+	httpFlag        = flag.String("http", ":8080", "Listen for HTTP connections on this address.")
+	productionFlag  = flag.Bool("production", false, "Production mode.")
+	vcsStoreDirFlag = flag.String("vcs-store-dir", "", "Directory of vcs store (optional).")
+	stateFileFlag   = flag.String("state-file", "", "File to save/load state.")
+)
 
 var t *template.Template
 
@@ -89,13 +80,8 @@ func main() {
 		log.Fatalln("loadTemplates:", err)
 	}
 
-	// TODO: This likely has room for improvement, investigate this carefully and improve.
-	transport := httpcache.NewMemoryCacheTransport()
-	cacheClient := &http.Client{Transport: transport}
-
-	if *vcsstoreHostFlag != "" {
-		sg = vcsclient.New(&url.URL{Scheme: "http", Host: *vcsstoreHostFlag}, cacheClient)
-		sg.UserAgent = "gotools.org backend " + sg.UserAgent
+	if *vcsStoreDirFlag != "" {
+		vs = &localVCSStore{dir: *vcsStoreDirFlag}
 	}
 
 	http.HandleFunc("/", codeHandler)
@@ -114,7 +100,7 @@ Disallow: /
 		_ = loadState(*stateFileFlag)
 	}
 
-	if sg != nil {
+	if vs != nil {
 		RepoUpdater = NewRepoUpdater()
 	}
 
@@ -421,7 +407,7 @@ func try(importPath, rev string) (
 		return source, nil, nil, "", nil, nil, nil, "", err
 	}
 
-	branches, err := repo.Branches()
+	branches, err := repo.Branches(vcs.BranchesOptions{})
 	if err != nil {
 		return source, nil, nil, "", nil, nil, nil, "", err
 	}
@@ -592,7 +578,7 @@ func tryRemote(importPath, rev string) (
 	defaultBranch string,
 	err error,
 ) {
-	if sg == nil {
+	if vs == nil {
 		return nil, nil, "", "", "", errors.New("no backing vcsstore specified")
 	}
 
@@ -607,7 +593,7 @@ func tryRemote(importPath, rev string) (
 	if err != nil {
 		return nil, nil, "", "", "", err
 	}
-	repo, err = sg.Repository(rs.vcsType, u)
+	repo, err = vs.Repository(rs.vcsType, u)
 	if err != nil {
 		return nil, nil, "", "", "", err
 	}
@@ -618,8 +604,8 @@ func tryRemote(importPath, rev string) (
 		commitId, err = repo.ResolveBranch(vcsRepo.GetDefaultBranch())
 	}
 	if err != nil {
-		err1 := repo.(vcsclient.RepositoryCloneUpdater).CloneOrUpdate(vcs.RemoteOpts{})
-		fmt.Println("tryRemote: CloneOrUpdate:", err1)
+		err1 := repo.(vcs.RemoteUpdater).UpdateEverything(vcs.RemoteOpts{})
+		fmt.Println("tryRemote: UpdateEverything:", err1)
 		if err1 != nil {
 			return nil, nil, "", "", "", multipleErrors{err, err1}
 		}

@@ -15,7 +15,7 @@
 				<div style="padding-bottom: 50px;">
 					<div style="padding: 30px;">
 						<h1>{{.ImportPathElements}}</h1>
-						{{with .Commit}}<p>Commit {{template "commitId" .ID}} from {{template "time" .Author.Date}}.</p>{{end}}
+						{{with .Commit}}<p>Commit {{template "commitId" .ID}} from {{template "time" .Author.Date.Time}}.</p>{{end}}
 						<p>{{with .Branches}}<span class="spacing" title="Branch"><span class="octicon octicon-git-branch" style="margin-right: 8px;"></span>{{.}}</span>{{end}}</p>
 						{{if .Folders}}
 							<ul>{{range .Folders}}<li><a href="/{{$.ImportPath}}/{{.}}{{fullQuery $.RawQuery}}">{{.}}</a></li>{{end}}</ul>

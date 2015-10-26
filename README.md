@@ -7,12 +7,8 @@ gtdo is the source for [gotools.org](http://gotools.org/).
 Installation
 ------------
 
-At this time, `gtdo` needs to be built with [`godep`](https://github.com/tools/godep) tool as it relies on older pinned versions of some dependencies.
-
 ```bash
-go get -u -d github.com/shurcooL/gtdo
-cd $GOPATH/src/github.com/shurcooL/gtdo
-godep go build -o /tmp/gtdo
+go get -u github.com/shurcooL/gtdo
 ```
 
 Development
@@ -28,7 +24,7 @@ go get -u -d -tags=js github.com/shurcooL/gtdo/...
 Afterwards, you can build and run the package in development mode, where all assets are always read and processed from disk:
 
 ```bash
-godep go build -tags=dev github.com/shurcooL/gtdo
+go build -tags=dev github.com/shurcooL/gtdo
 ```
 
 When you're done with development, you should run `go generate` before committing:

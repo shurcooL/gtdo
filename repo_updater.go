@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
-	"sourcegraph.com/sourcegraph/vcsstore/vcsclient"
 )
 
 // RepoUpdater is a background repository update worker. Repo update requests can be enqueued,
@@ -83,15 +82,15 @@ func (ru *repoUpdater) worker() {
 			log.Println(err)
 			continue
 		}
-		repo, err := sg.Repository(rs.vcsType, u)
+		repo, err := vs.Repository(rs.vcsType, u)
 		if err != nil {
 			log.Println(err)
 			continue
 		}
 
-		err = repo.(vcsclient.RepositoryCloneUpdater).CloneOrUpdate(vcs.RemoteOpts{})
+		err = repo.(vcs.RemoteUpdater).UpdateEverything(vcs.RemoteOpts{})
 		if err != nil {
-			fmt.Println("repoUpdater: CloneOrUpdate:", err)
+			fmt.Println("repoUpdater: UpdateEverything:", err)
 		}
 
 		fmt.Println("taken:", time.Since(started))

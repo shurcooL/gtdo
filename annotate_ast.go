@@ -5,7 +5,15 @@ import (
 	"go/token"
 
 	"github.com/sourcegraph/annotate"
+	"github.com/sourcegraph/syntaxhighlight"
 )
+
+// htmlAnnotator is like the default HTML annotator, except it doesn't annotate plain text.
+var htmlAnnotator = func() syntaxhighlight.Annotator {
+	var c = syntaxhighlight.HTMLAnnotator(syntaxhighlight.DefaultHTMLConfig)
+	c.Plaintext = "" // Do not annotate plain text since it's not decorated.
+	return c
+}()
 
 // fileOffset returns the offset of pos within its file.
 func fileOffset(fset *token.FileSet, pos token.Pos) int {
