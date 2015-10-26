@@ -365,7 +365,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if bpkg != nil {
+	if bpkg != nil && bpkg.Name != "" {
 		sendToTop(bpkg.ImportPath)
 	}
 	if RepoUpdater != nil && repoSpec != nil {
