@@ -604,7 +604,7 @@ func tryRemote(importPath, rev string) (
 		commitId, err = repo.ResolveBranch(vcsRepo.GetDefaultBranch())
 	}
 	if err != nil {
-		err1 := repo.(vcs.RemoteUpdater).UpdateEverything(vcs.RemoteOpts{})
+		_, err1 := repo.(vcs.RemoteUpdater).UpdateEverything(vcs.RemoteOpts{})
 		fmt.Println("tryRemote: UpdateEverything:", err1)
 		if err1 != nil {
 			return nil, nil, "", "", "", multipleErrors{err, err1}

@@ -88,7 +88,7 @@ func (ru *repoUpdater) worker() {
 			continue
 		}
 
-		err = repo.(vcs.RemoteUpdater).UpdateEverything(vcs.RemoteOpts{})
+		_, err = repo.(vcs.RemoteUpdater).UpdateEverything(vcs.RemoteOpts{})
 		if err != nil {
 			fmt.Println("repoUpdater: UpdateEverything:", err)
 		}
