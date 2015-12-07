@@ -13,7 +13,8 @@ import (
 func Tabs(path string, rawQuery string) template.HTML {
 	query, _ := url.ParseQuery(rawQuery)
 
-	selectedTab := query.Get("tab")
+	const key = "tab"
+	selectedTab := query.Get(key)
 
 	var ns []*html.Node
 
@@ -31,15 +32,15 @@ func Tabs(path string, rawQuery string) template.HTML {
 		if tab.id == selectedTab {
 			a.Attr = []html.Attribute{{Key: atom.Class.String(), Val: "selected"}}
 		} else {
-			query := query
+			q := query
 			if tab.id == "" {
-				query.Del("tab")
+				q.Del(key)
 			} else {
-				query.Set("tab", tab.id)
+				q.Set(key, tab.id)
 			}
 			u := url.URL{
 				Path:     path,
-				RawQuery: query.Encode(),
+				RawQuery: q.Encode(),
 			}
 			a.Attr = []html.Attribute{
 				{Key: atom.Href.String(), Val: u.String()},
