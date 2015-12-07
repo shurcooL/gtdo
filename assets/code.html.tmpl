@@ -20,7 +20,7 @@
 						{{if .Folders}}
 							<ul>{{range .Folders}}<li><a href="/{{$.ImportPath}}/{{.}}{{fullQuery $.RawQuery}}">{{.}}</a></li>{{end}}</ul>
 						{{end}}
-						<nav id="tabs">{{.Tabs}}</nav>
+						<nav>{{.Tabs}}</nav>
 						<p><span class="spacing" title="Display Test Files"><label>{{.Tests}}Tests</label></span></p>
 						{{if not .DirExists}}
 							<div style="margin-top: 20px;"><i>(this subdirectory doesn't exist, maybe it exists on another branch?)</i></div>
