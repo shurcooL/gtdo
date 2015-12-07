@@ -25,10 +25,20 @@
 							<div style="margin-top: 20px;"><i>(this subdirectory doesn't exist, maybe it exists on another branch?)</i></div>
 						{{end}}
 						<article class="tool-page" style="margin-top: 30px;">
-						{{with .Dpkg}}
+						{{if .Bpkg}}
 							<div>
 								<h3>Imports</h3>
-								<ul>{{range .Imports}}<li><a href="{{importPathURL . $.RepoImportPath $.RawQuery}}"><code>{{.}}</code></a></li>{{end}}</ul>
+								{{with .Bpkg.Imports}}
+									<ul>{{range .}}<li><a href="{{importPathURL . $.RepoImportPath $.RawQuery}}"><code>{{.}}</code></a></li>{{end}}</ul>
+								{{else}}
+									<em style="padding-left: 20px;">None.</em>
+								{{end}}
+								<h3><abbr title="Additional imports used by tests.">Additional Test Imports</abbr></h3>
+								{{with .AdditionalTestImports}}
+									<ul>{{range .}}<li><a href="{{importPathURL . $.RepoImportPath $.RawQuery}}"><code>{{.}}</code></a></li>{{end}}</ul>
+								{{else}}
+									<em style="padding-left: 20px;">None.</em>
+								{{end}}
 							</div>
 						{{else}}
 							<div>No docs.</div>

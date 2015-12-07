@@ -13,6 +13,7 @@ import (
 	"log"
 	"net/http"
 	"path/filepath"
+	"sort"
 
 	"github.com/shurcooL/frontend/select_menu"
 	"github.com/shurcooL/gtdo/gtdo"
@@ -143,9 +144,10 @@ func importsHandler(w http.ResponseWriter, req *http.Request) {
 		Commit             *vcs.Commit
 		DirExists          bool
 		Bpkg               *build.Package
-		Dpkg               *doc.Package
 		Folders            []string
 		Branches           template.HTML // Select menu for branches.
+
+		AdditionalTestImports []string
 	}{
 		Production:         *productionFlag,
 		RawQuery:           req.URL.RawQuery,
@@ -179,12 +181,24 @@ func importsHandler(w http.ResponseWriter, req *http.Request) {
 		data.Branches = select_menu.New(branches, defaultBranch, req.URL.Query(), gtdo.RevisionQueryParameter)
 	}
 
+	// AdditionalTestImports.
+	// It is (bpkg.TestImports + bpkg.XTestImports) - bpkg.Imports.
 	if fs != nil && bpkg != nil {
-		if dpkg, err := docPackage(fs, bpkg); err == nil {
-			data.Dpkg = dpkg
-		} else {
-			log.Println(err)
+		additionalTestImports := make(map[string]struct{})
+		for _, ip := range bpkg.TestImports {
+			additionalTestImports[ip] = struct{}{}
 		}
+		for _, ip := range bpkg.XTestImports {
+			additionalTestImports[ip] = struct{}{}
+		}
+		for _, ip := range bpkg.Imports {
+			delete(additionalTestImports, ip)
+		}
+
+		for ip := range additionalTestImports {
+			data.AdditionalTestImports = append(data.AdditionalTestImports, ip)
+		}
+		sort.Strings(data.AdditionalTestImports)
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
