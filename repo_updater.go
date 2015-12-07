@@ -90,7 +90,8 @@ func (ru *repoUpdater) worker() {
 
 		result, err := repo.(vcs.RemoteUpdater).UpdateEverything(vcs.RemoteOpts{})
 		if err != nil {
-			fmt.Println("repoUpdater: UpdateEverything:", err)
+			log.Println("repoUpdater: UpdateEverything:", err)
+			continue
 		}
 
 		fmt.Println("taken:", time.Since(started))
