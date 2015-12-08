@@ -26,10 +26,14 @@
 						{{with .Importers}}
 							<div>
 								<h3>Importers</h3>
-								<ul>{{range .Results}}<li><a href="{{importPathURL .Path $.RepoImportPath $.RawQuery}}"><code title="{{.Synopsis}}">{{.Path}}</code></a></li>{{end}}</ul>
+								{{with .Results}}
+									<ul>{{range .}}<li><a href="{{importPathURL .Path $.RepoImportPath $.RawQuery}}"><code title="{{.Synopsis}}">{{.Path}}</code></a></li>{{end}}</ul>
+								{{else}}
+									<em style="padding-left: 20px;">None.</em>
+								{{end}}
 							</div>
 						{{else}}
-							<div>No importers.</div>
+							<div>Failed to fetch importers.</div>
 						{{end}}
 						<p><a href="https://godoc.org/{{.ImportPath}}?importers" target="_blank">Source</a>.</p>
 						<p>Note: Importers are based on latest master branch of all repositories, not the currently selected branch.</p>
