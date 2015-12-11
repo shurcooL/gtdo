@@ -16,9 +16,9 @@ var RepoUpdater *repoUpdater
 
 type repoUpdater struct {
 	mu     sync.Mutex
+	queue  chan importPathRepoSpec
 	recent map[repoSpec]time.Time // Repo spec -> last updated time.
-
-	queue chan repoSpec
+	closed bool                   // After it's set to true, future Enqueue calls will do nothing.
 
 	wg sync.WaitGroup
 }
@@ -26,27 +26,36 @@ type repoUpdater struct {
 // NewRepoUpdater starts a repository update worker.
 func NewRepoUpdater() *repoUpdater {
 	ru := &repoUpdater{
+		queue:  make(chan importPathRepoSpec, 10),
 		recent: make(map[repoSpec]time.Time),
-		queue:  make(chan repoSpec, 10),
 	}
 	ru.wg.Add(1)
 	go ru.worker()
 	return ru
 }
 
-// Close shuts down all workers, waiting for them to finish.
-//
-// It should only be called after the last Enqueue call has been made.
+// Close disables future Enqueue requests, shuts down all workers, waiting for them to finish.
 func (ru *repoUpdater) Close() error {
+	ru.mu.Lock()
 	close(ru.queue)
+	ru.closed = true
+	ru.mu.Unlock()
+
 	ru.wg.Wait()
+
 	return nil
 }
 
 // Enqueue a request to update the specified repository.
-func (ru *repoUpdater) Enqueue(repo repoSpec) {
+// It's safe to call this concurrently.
+// After Close is called, Enqueue will return without doing anything.
+func (ru *repoUpdater) Enqueue(repo importPathRepoSpec) {
 	ru.mu.Lock()
 	defer ru.mu.Unlock()
+
+	if ru.closed {
+		return
+	}
 
 	now := time.Now()
 
@@ -58,13 +67,13 @@ func (ru *repoUpdater) Enqueue(repo repoSpec) {
 	}
 
 	// Skip if recently updated.
-	if _, recent := ru.recent[repo]; recent {
+	if _, recent := ru.recent[repo.repoSpec]; recent {
 		return
 	}
 
 	select {
 	case ru.queue <- repo:
-		ru.recent[repo] = now
+		ru.recent[repo.repoSpec] = now
 	default:
 		// Skip since queue is full.
 	}
@@ -111,9 +120,17 @@ func (ru *repoUpdater) worker() {
 	}
 }
 
-// repoSpec identifies a repository.
+// repoSpec identifies a repository for go-vcs purposes.
 type repoSpec struct {
+	vcsType  string
+	cloneURL string
+}
+
+// importPathRepoSpec tracks of repoSpec and importPath. The importPath is needed for frontend
+// notifications (while repoSpec is used for go-vcs repo updates.
+// TODO: Ideally, in future, might want to change vcs store to be importPath-based instead, then repoSpec can go away
+//       and everything can use importPath only. But think about it, maybe importPath alone doesn't carry enough info (like type of VCS).
+type importPathRepoSpec struct {
 	importPath string
-	vcsType    string
-	cloneURL   string
+	repoSpec
 }

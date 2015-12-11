@@ -32,24 +32,33 @@ func (pv *pageViewer) NotifyOutdated() {
 }
 
 func eventsHandler(w http.ResponseWriter, req *http.Request) {
-	log.Println("eventsHandler method:", req.Method)
-
-	// TODO: Dedup query keys.
-	importPathBranch := importPathBranch{
-		importPath: req.URL.Query().Get("ImportPath"),
-		branch:     req.URL.Query().Get("Branch"),
-	}
-	repoSpec := repoSpec{
-		importPath: importPathBranch.importPath,
-		vcsType:    req.URL.Query().Get("RepoSpec.VCSType"),
-		cloneURL:   req.URL.Query().Get("RepoSpec.CloneURL"),
-	}
-	if repoSpec.vcsType == "" || repoSpec.cloneURL == "" {
-		log.Println("Invalid repoSpec:", repoSpec)
-		http.Error(w, "Invalid repoSpec.", http.StatusBadRequest)
+	if req.Method != "GET" {
+		w.Header().Set("Allow", "GET")
+		log.Println("unexpected eventsHandler method:", req.Method)
+		http.Error(w, "Expected method to be GET... Does EventSource need something else too?", http.StatusMethodNotAllowed)
 		return
 	}
-	RepoUpdater.Enqueue(repoSpec)
+
+	query := req.URL.Query()
+
+	importPath := query.Get("ImportPath")
+	importPathBranch := importPathBranch{
+		importPath: importPath,
+		branch:     query.Get("Branch"),
+	}
+	importPathRepoSpec := importPathRepoSpec{
+		importPath: importPath,
+		repoSpec: repoSpec{
+			vcsType:  query.Get("RepoSpec.VCSType"),
+			cloneURL: query.Get("RepoSpec.CloneURL"),
+		},
+	}
+	if importPathRepoSpec.importPath == "" || importPathRepoSpec.vcsType == "" || importPathRepoSpec.cloneURL == "" {
+		log.Println("Invalid importPathRepoSpec:", importPathRepoSpec)
+		http.Error(w, "Invalid importPathRepoSpec.", http.StatusBadRequest)
+		return
+	}
+	RepoUpdater.Enqueue(importPathRepoSpec)
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -98,9 +107,9 @@ func eventsHandler(w http.ResponseWriter, req *http.Request) {
 	/*w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Access-Control-Allow-Origin", "*")*/
-	if *productionFlag {
-		w.Header().Set("Access-Control-Allow-Origin", "http://gotools.org")
-	}
+	/*if *productionFlag {
+		w.Header().Set("Access-Control-Allow-Origin", "https://gotools.org")
+	}*/
 
 	for {
 		select {
@@ -115,7 +124,6 @@ func eventsHandler(w http.ResponseWriter, req *http.Request) {
 		case <-closeChan:
 			log.Println("(via CloseNotifier)")
 			return
-			//case <-time.After(10 * time.Second):
 		}
 	}
 }

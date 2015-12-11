@@ -112,6 +112,11 @@ Disallow: /
 		sse = make(map[importPathBranch][]pageViewer)
 		http.HandleFunc("/-/events", eventsHandler)
 		http.HandleFunc("/-/events.debug", func(w http.ResponseWriter, req *http.Request) {
+			if req.Method != "GET" {
+				w.Header().Set("Allow", "GET")
+				http.Error(w, "Method should be GET.", http.StatusMethodNotAllowed)
+				return
+			}
 			sseMu.Lock()
 			for importPathBranch, pageViewers := range sse {
 				fmt.Fprintf(w, "%#v - %v\n", importPathBranch, len(pageViewers))
@@ -409,9 +414,9 @@ func afterPackageVisit(bpkg *build.Package, repoSpec *repoSpec) {
 	if bpkg != nil && bpkg.Name != "" {
 		sendToTop(bpkg.ImportPath)
 	}
-	/*if RepoUpdater != nil && repoSpec != nil {
-		RepoUpdater.Enqueue(*repoSpec)
-	}*/
+	// RepoUpdater.Enqueue(*repoSpec) now happens via SSE path, later on.
+	// It needs to happen there, so that by the time we may have a response,
+	// it can be directly sent. Otherwise we might have an update before the SSE client connected.
 }
 
 // Try local first, if not, try remote, if not, clone/update remote and try one last time.

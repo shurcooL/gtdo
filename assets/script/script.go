@@ -3,6 +3,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -273,20 +274,13 @@ func init() {
 		}
 	})
 
-	/*stateJSON := js.Global.Get("State").String()
-	fmt.Println(stateJSON)
 	var state page.State
-	err := json.Unmarshal([]byte(stateJSON), &state)
+	err := json.Unmarshal([]byte(js.Global.Get("StateJSON").String()), &state)
 	if err != nil {
 		panic(err)
-	}*/
-	var state page.StateObject
-	state.Object = js.Global.Get("State")
+	}
 
-	//goon.Dump(state)
-	//goon.Dump(state.RepoSpec)
-
-	// WIP: EventSource updates.
+	// EventSource updates.
 	if state.RepoSpec.CloneURL != "" {
 		u := url.URL{
 			Path: "/-/events",
