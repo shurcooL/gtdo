@@ -110,32 +110,17 @@ Disallow: /
 		RepoUpdater = NewRepoUpdater()
 
 		sse = make(map[importPathBranch][]pageViewer)
-		if *productionFlag {
-			// TODO: This is to avoid reverse proxy router issue, can/should it be fixed in a better way?
-			go func() {
-				mux := http.NewServeMux()
-				/*mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-					log.Println("events root:", req.Method, req.URL.Path)
-					w.Header().Set("Access-Control-Allow-Origin", "http://gotools.org")
-				})*/
-				mux.HandleFunc("/-/events", eventsHandler)
-				log.Fatalln(http.ListenAndServe(":26203", mux))
-			}()
-		} else {
-			http.HandleFunc("/-/events", eventsHandler)
-		}
-		if !*productionFlag || true { // TODO: Remove "|| true" after debugging, etc.
-			http.HandleFunc("/-/events.debug", func(w http.ResponseWriter, req *http.Request) {
-				sseMu.Lock()
-				for importPathBranch, pageViewers := range sse {
-					fmt.Fprintf(w, "%#v - %v\n", importPathBranch, len(pageViewers))
-				}
-				if len(sse) == 0 {
-					fmt.Fprintf(w, "-")
-				}
-				sseMu.Unlock()
-			})
-		}
+		http.HandleFunc("/-/events", eventsHandler)
+		http.HandleFunc("/-/events.debug", func(w http.ResponseWriter, req *http.Request) {
+			sseMu.Lock()
+			for importPathBranch, pageViewers := range sse {
+				fmt.Fprintf(w, "%#v - %v\n", importPathBranch, len(pageViewers))
+			}
+			if len(sse) == 0 {
+				fmt.Fprintf(w, "-")
+			}
+			sseMu.Unlock()
+		})
 	}
 
 	stopServerChan := make(chan struct{})

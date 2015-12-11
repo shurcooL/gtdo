@@ -297,9 +297,6 @@ func init() {
 				"RepoSpec.CloneURL": {state.RepoSpec.CloneURL},
 			}.Encode(),
 		}
-		if state.Production {
-			u.Host = "gotools.org:26203"
-		}
 
 		source := eventsource.New(u.String())
 		source.AddEventListener("message", false, func(event *js.Object) {
