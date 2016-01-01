@@ -69,16 +69,24 @@ span.spacing {
 	margin-right: 4px;
 }
 
-.ln {
-	float: left;
-	text-align: right;
-	width: 24px;
-	margin-right: 10px;
-	color: #b0b0b0;
-	cursor: hand;
-	-webkit-user-select: none;
+table {
+	line-height: 1.428571429;
 }
-.ln:hover {
+td {
+	padding: 0;
+}
+pre.ln {
+	text-align: right;
+	color: #b0b0b0;
+	-webkit-user-select: none;
+	-moz-user-select: none;
+}
+span.ln {
+	display: inline-block;
+	width: 24px;
+	cursor: pointer;
+}
+span.ln:hover {
 	color: #909090;
 }
 
@@ -92,7 +100,7 @@ h1:hover .anchor, h2:hover .anchor, h3:hover .anchor, h4:hover .anchor, h5:hover
 	content: '\f05c'; /* https://octicons.github.com/icon/link/ */
 	color: black;
 	margin-left: 8px;
-	cursor: hand;
+	cursor: pointer;
 }
 
 .header a:hover {
@@ -112,7 +120,7 @@ h1:hover .anchor, h2:hover .anchor, h3:hover .anchor, h4:hover .anchor, h5:hover
 	-webkit-appearance: none;
 }
 .import-path-container button {
-	cursor: hand;
+	cursor: pointer;
 }
 .import-path-container button:hover {
 	background-color: #eeeeee;
@@ -143,6 +151,7 @@ div.outdated span.close a:hover {
 
 * {
 	tab-size: 4;
+	-moz-tab-size: 4;
 }
 code {
 	font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;

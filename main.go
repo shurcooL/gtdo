@@ -377,14 +377,14 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 			io.WriteString(&buf, `<div class="highlight highlight-Go">`)
 			io.WriteString(&buf, `<div style="position: absolute; z-index: -2; background-color: #f2f2f2; width: 100%; height: 100%;"></div>`)
 			io.WriteString(&buf, `<div class="background" style="position: absolute; z-index: -1; background-color: rgb(236, 217, 145); width: 100%;"></div>`)
-			io.WriteString(&buf, `<pre style="float: left;">`)
+			io.WriteString(&buf, `<table cellspacing=0><tr><td><pre class="ln">`)
 			for i := 1; i <= lineCount; i++ {
 				fmt.Fprintf(&buf, `<span id="%s-L%d" class="ln" onclick="LineNumber(event, &#34;\&#34;%s-L%d\&#34;&#34;);">%d</span>`, sanitized_anchor_name.Create(goFile), i, sanitized_anchor_name.Create(goFile), i, i)
 				buf.WriteString("\n")
 			}
-			io.WriteString(&buf, `</pre><pre class="file">`)
+			io.WriteString(&buf, `</pre></td><td><pre class="file">`)
 			buf.Write(annSrc)
-			io.WriteString(&buf, `</pre></div></div>`)
+			io.WriteString(&buf, `</pre></td></tr></table></div></div>`)
 		}
 
 		data.Files = template.HTML(buf.String())
