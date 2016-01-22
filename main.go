@@ -310,9 +310,12 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 
 			const maxAnnotateSize = 1000 * 1000
 
-			var annSrc []byte
+			var (
+				annSrc           []byte
+				shouldHTMLEscape bool
+			)
 			switch {
-			case fi.Size() < maxAnnotateSize:
+			case fi.Size() <= maxAnnotateSize:
 				fset := token.NewFileSet()
 				fileAst, err := parser.ParseFile(fset, filepath.Join(bpkg.Dir, goFile), src, parser.ParseComments)
 				if err != nil {
@@ -367,9 +370,11 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 				if err != nil {
 					panic(err)
 				}
+				shouldHTMLEscape = false
 			default:
 				// Skip annotation for huge files.
 				annSrc = src
+				shouldHTMLEscape = true
 			}
 
 			lineCount := bytes.Count(src, []byte("\n"))
@@ -383,7 +388,12 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 				buf.WriteString("\n")
 			}
 			io.WriteString(&buf, `</pre></td><td><pre class="file">`)
-			buf.Write(annSrc)
+			switch shouldHTMLEscape {
+			case false:
+				buf.Write(annSrc)
+			case true:
+				template.HTMLEscape(&buf, annSrc)
+			}
 			io.WriteString(&buf, `</pre></td></tr></table></div></div>`)
 		}
 
@@ -410,6 +420,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	afterPackageVisit(bpkg, repoSpec)
 }
 
+// afterPackageVisit is called after a package is visited.
 func afterPackageVisit(bpkg *build.Package, repoSpec *repoSpec) {
 	if bpkg != nil && bpkg.Name != "" {
 		sendToTop(bpkg.ImportPath)
