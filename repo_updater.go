@@ -105,6 +105,9 @@ func (ru *repoUpdater) worker() {
 
 		fmt.Println("taken:", time.Since(started))
 
+		if result == nil {
+			continue
+		}
 		for _, change := range result.Changes {
 			importPathBranch := importPathBranch{
 				importPath: rs.importPath,
