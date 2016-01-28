@@ -111,12 +111,11 @@ Disallow: /
 
 		sse = make(map[importPathBranch][]pageViewer)
 		http.HandleFunc("/-/events", eventsHandler)
-		http.HandleFunc("/-/events.debug", func(w http.ResponseWriter, req *http.Request) {
-			if req.Method != "GET" {
-				w.Header().Set("Allow", "GET")
-				http.Error(w, "Method should be GET.", http.StatusMethodNotAllowed)
-				return
-			}
+
+		http.Handle("/-/debug", handler(func(w io.Writer, req *http.Request) error {
+			fmt.Fprintln(w, "len(RepoUpdater.queue):", len(RepoUpdater.queue))
+			fmt.Fprintln(w)
+			fmt.Fprintln(w, "events:")
 			sseMu.Lock()
 			for importPathBranch, pageViewers := range sse {
 				fmt.Fprintf(w, "%#v - %v\n", importPathBranch, len(pageViewers))
@@ -125,7 +124,8 @@ Disallow: /
 				fmt.Fprintf(w, "-")
 			}
 			sseMu.Unlock()
-		})
+			return nil
+		}))
 	}
 
 	stopServerChan := make(chan struct{})
