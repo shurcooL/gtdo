@@ -30,7 +30,7 @@ func (h handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		log.Println(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	default:
-		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		io.Copy(w, &buf)
 	}
 }
