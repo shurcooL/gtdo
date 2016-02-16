@@ -99,6 +99,7 @@ Disallow: /
 	})
 	fileServer := gzip_file_server.New(assets)
 	http.Handle("/assets/", fileServer)
+	http.Handle("/assets/octicons/", http.StripPrefix("/assets/", fileServer))
 	http.Handle("/assets/select-list-view.css", http.StripPrefix("/assets/", fileServer))
 	http.Handle("/assets/table-of-contents.css", http.StripPrefix("/assets/", fileServer))
 
