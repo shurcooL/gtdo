@@ -28,7 +28,7 @@ func importersHandler(w http.ResponseWriter, req *http.Request) {
 
 	log.Printf("req: importPath=%q rev=%q.\n", importPath, rev)
 
-	source, bpkg, repoSpec, repoImportPath, _, fs, _, _, err := try(importPath, rev)
+	source, bpkg, repoSpec, repoImportPath, commit, fs, branches, defaultBranch, err := try(importPath, rev)
 	log.Println("using source:", source)
 	if err != nil {
 		log.Println("try:", err)
@@ -36,7 +36,24 @@ func importersHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	frontendState := page.State{
+		Production:   *productionFlag,
+		ImportPath:   importPath,
+		ProcessedRev: rev,
+	}
+	if frontendState.ProcessedRev == "" && len(branches) != 0 {
+		frontendState.ProcessedRev = defaultBranch
+	}
+	if repoSpec != nil {
+		frontendState.RepoSpec.VCSType = repoSpec.vcsType
+		frontendState.RepoSpec.CloneURL = repoSpec.cloneURL
+	}
+	if commit != nil {
+		frontendState.CommitID = string(commit.ID)
+	}
+
 	data := struct {
+		FrontendState      page.State // TODO: Maybe move Production, RawQuery, etc., here?
 		Production         bool
 		RawQuery           string
 		Tabs               template.HTML
@@ -48,6 +65,7 @@ func importersHandler(w http.ResponseWriter, req *http.Request) {
 		Importers          u5.Importers
 		Folders            []string
 	}{
+		FrontendState:      frontendState,
 		Production:         *productionFlag,
 		RawQuery:           req.URL.RawQuery,
 		Tabs:               page.Tabs(req.URL.Path, req.URL.RawQuery),

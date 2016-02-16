@@ -36,7 +36,24 @@ func summaryHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	frontendState := page.State{
+		Production:   *productionFlag,
+		ImportPath:   importPath,
+		ProcessedRev: rev,
+	}
+	if frontendState.ProcessedRev == "" && len(branches) != 0 {
+		frontendState.ProcessedRev = defaultBranch
+	}
+	if repoSpec != nil {
+		frontendState.RepoSpec.VCSType = repoSpec.vcsType
+		frontendState.RepoSpec.CloneURL = repoSpec.cloneURL
+	}
+	if commit != nil {
+		frontendState.CommitID = string(commit.ID)
+	}
+
 	data := struct {
+		FrontendState      page.State // TODO: Maybe move Production, RawQuery, etc., here?
 		Production         bool
 		RawQuery           string
 		Tabs               template.HTML
@@ -51,6 +68,7 @@ func summaryHandler(w http.ResponseWriter, req *http.Request) {
 		Folders            []string
 		Branches           template.HTML // Select menu for branches.
 	}{
+		FrontendState:      frontendState,
 		Production:         *productionFlag,
 		RawQuery:           req.URL.RawQuery,
 		Tabs:               page.Tabs(req.URL.Path, req.URL.RawQuery),
@@ -129,7 +147,24 @@ func importsHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	frontendState := page.State{
+		Production:   *productionFlag,
+		ImportPath:   importPath,
+		ProcessedRev: rev,
+	}
+	if frontendState.ProcessedRev == "" && len(branches) != 0 {
+		frontendState.ProcessedRev = defaultBranch
+	}
+	if repoSpec != nil {
+		frontendState.RepoSpec.VCSType = repoSpec.vcsType
+		frontendState.RepoSpec.CloneURL = repoSpec.cloneURL
+	}
+	if commit != nil {
+		frontendState.CommitID = string(commit.ID)
+	}
+
 	data := struct {
+		FrontendState      page.State // TODO: Maybe move Production, RawQuery, etc., here?
 		Production         bool
 		RawQuery           string
 		Tabs               template.HTML
@@ -144,6 +179,7 @@ func importsHandler(w http.ResponseWriter, req *http.Request) {
 
 		AdditionalTestImports []string
 	}{
+		FrontendState:      frontendState,
 		Production:         *productionFlag,
 		RawQuery:           req.URL.RawQuery,
 		Tabs:               page.Tabs(req.URL.Path, req.URL.RawQuery),
