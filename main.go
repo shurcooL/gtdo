@@ -665,7 +665,7 @@ func tryRemote(importPath, rev string) (
 		_, err1 := repo.(vcs.RemoteUpdater).UpdateEverything(vcs.RemoteOpts{})
 		fmt.Println("tryRemote: UpdateEverything:", err1)
 		if err1 != nil {
-			return nil, nil, "", "", "", multipleErrors{err, err1}
+			return nil, nil, "", "", "", NewMultipleErrors(err, err1)
 		}
 
 		if rev != "" {
@@ -674,7 +674,7 @@ func tryRemote(importPath, rev string) (
 			commitId, err1 = repo.ResolveBranch(vcsRepo.GetDefaultBranch())
 		}
 		if err1 != nil {
-			return nil, nil, "", "", "", multipleErrors{err, err1}
+			return nil, nil, "", "", "", NewMultipleErrors(err, err1)
 		}
 		fmt.Println("tryRemote: worked on SECOND try")
 	} else {
@@ -804,6 +804,11 @@ func fullQuery(rawQuery string) string {
 		return ""
 	}
 	return "?" + rawQuery
+}
+
+// NewMultipleErrors returns an error that consists of 2 or more errors.
+func NewMultipleErrors(err0, err1 error, errs ...error) error {
+	return append(multipleErrors{err0, err1}, errs...)
 }
 
 // multipleErrors should consist of 2 or more errors.
