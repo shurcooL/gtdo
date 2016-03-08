@@ -93,7 +93,7 @@ func LineNumber(event dom.Event, targetId string) {
 // valid is true iff the hash points to a valid target.
 func processHash(hash string, valid bool) {
 	// Clear everything.
-	for _, e := range document.GetElementsByClassName("background") {
+	for _, e := range document.GetElementsByClassName("selection") {
 		e.(dom.HTMLElement).Style().SetProperty("display", "none", "")
 	}
 
@@ -115,7 +115,7 @@ func processHash(hash string, valid bool) {
 		}
 
 		fileHeader := document.GetElementByID(file).(dom.HTMLElement)
-		fileBackground := fileHeader.ParentElement().GetElementsByClassName("background")[0].(dom.HTMLElement)
+		fileBackground := fileHeader.ParentElement().GetElementsByClassName("selection")[0].(dom.HTMLElement)
 		fileBackground.Style().SetProperty("display", "initial", "")
 		fileBackground.Style().SetProperty("top", fmt.Sprintf("%vpx", startElement.OffsetTop()), "")
 		fileBackground.Style().SetProperty("height", fmt.Sprintf("%vpx", endElement.OffsetTop()-startElement.OffsetTop()+endElement.OffsetHeight()), "")

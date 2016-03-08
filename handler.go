@@ -9,6 +9,7 @@ import (
 )
 
 // handler is a GET-only handler for serving text/plain content.
+// It verifies that req.Method is GET, and rejects the request otherwise.
 type handler func(w io.Writer, req *http.Request) error
 
 func (h handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {

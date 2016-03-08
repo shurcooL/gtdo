@@ -76,6 +76,8 @@ td {
 	padding: 0;
 }
 pre.ln {
+	background-color: hsla(0, 0%, 99%, 1);
+	border-right: 1px solid hsla(0, 0%, 95%, 1);
 	text-align: right;
 	color: #b0b0b0;
 	-webkit-user-select: none;
@@ -87,7 +89,7 @@ span.ln {
 	cursor: pointer;
 }
 span.ln:hover {
-	color: #909090;
+	color: #555;
 }
 
 .anchor {
@@ -160,6 +162,20 @@ code {
 
 div.highlight {
 	position: relative;
+	border: 1px solid hsla(0, 0%, 88%, 1);
+}
+div.background {
+	position: absolute;
+	z-index: -2;
+	width: 100%;
+	height: 100%;
+	background-color: hsla(0, 0%, 99%, 1);
+}
+div.selection {
+	position: absolute;
+	z-index: -1;
+	background-color: rgb(236, 217, 145);
+	width: 100%;
 }
 pre.file {
 	background: none !important;
