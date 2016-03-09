@@ -39,10 +39,10 @@ import (
 	vcs2 "github.com/shurcooL/go/vcs"
 	"github.com/shurcooL/go/vfs_util"
 	"github.com/shurcooL/gtdo/gtdo"
+	"github.com/shurcooL/gtdo/internal/sanitizedanchorname"
 	"github.com/shurcooL/gtdo/page"
 	"github.com/shurcooL/highlight_go"
 	"github.com/shurcooL/httpfs/html/vfstemplate"
-	"github.com/shurcooL/sanitized_anchor_name"
 	"github.com/sourcegraph/annotate"
 	"golang.org/x/net/html"
 	go_vcs "golang.org/x/tools/go/vcs"
@@ -379,13 +379,13 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 			}
 
 			lineCount := bytes.Count(src, []byte("\n"))
-			fmt.Fprintf(&buf, `<div><h2 id="%s">%s<a class="anchor" onclick="MustScrollTo(event, &#34;\&#34;%s\&#34;&#34;);"><span class="anchor-icon octicon"></span></a></h2>`, sanitized_anchor_name.Create(goFile), html.EscapeString(goFile), sanitized_anchor_name.Create(goFile)) // HACK.
+			fmt.Fprintf(&buf, `<div><h2 id="%s">%s<a class="anchor" onclick="MustScrollTo(event, &#34;\&#34;%s\&#34;&#34;);"><span class="anchor-icon octicon"></span></a></h2>`, sanitizedanchorname.Create(goFile), html.EscapeString(goFile), sanitizedanchorname.Create(goFile)) // HACK.
 			io.WriteString(&buf, `<div class="highlight">`)
 			io.WriteString(&buf, `<div class="background"></div>`)
 			io.WriteString(&buf, `<div class="selection"></div>`)
 			io.WriteString(&buf, `<table cellspacing=0><tr><td><pre class="ln">`)
 			for i := 1; i <= lineCount; i++ {
-				fmt.Fprintf(&buf, `<span id="%s-L%d" class="ln" onclick="LineNumber(event, &#34;\&#34;%s-L%d\&#34;&#34;);">%d</span>`, sanitized_anchor_name.Create(goFile), i, sanitized_anchor_name.Create(goFile), i, i)
+				fmt.Fprintf(&buf, `<span id="%s-L%d" class="ln" onclick="LineNumber(event, &#34;\&#34;%s-L%d\&#34;&#34;);">%d</span>`, sanitizedanchorname.Create(goFile), i, sanitizedanchorname.Create(goFile), i, i)
 				buf.WriteString("\n")
 			}
 			io.WriteString(&buf, `</pre></td><td><pre class="file">`)
