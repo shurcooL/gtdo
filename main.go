@@ -197,7 +197,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	rev := req.URL.Query().Get(gtdo.RevisionQueryParameter)
 	_, includeTestFiles := req.URL.Query()[testsQueryParameter]
 
-	log.Printf("req: importPath=%q rev=%q.\n", importPath, rev)
+	log.Printf("req: importPath=%q rev=%q, ref=%q, ua=%q.\n", importPath, rev, req.Referer(), req.UserAgent())
 
 	source, bpkg, repoSpec, repoImportPath, commit, fs, branches, defaultBranch, err := try(importPath, rev)
 	log.Println("using source:", source)
