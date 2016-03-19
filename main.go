@@ -485,10 +485,6 @@ func try(importPath, rev string) (
 		return source, nil, nil, "", nil, nil, nil, "", err
 	}
 
-	// This adapter is needed to make fs.Open("/main.go") work, since the local repo's vfs only allows fs.Open("main.go").
-	// See https://github.com/sourcegraph/go-vcs/issues/23.
-	fs = vfs_util.NewRootedFS(fs)
-
 	fs = vfs_util.NewPrefixFS(fs, "/virtual-go-workspace/src/"+repoImportPath)
 
 	// Verify the import path is an existing subdirectory (it may exist on one branch, but not another).
