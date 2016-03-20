@@ -36,4 +36,4 @@ go generate github.com/shurcooL/gtdo/...
 License
 -------
 
--	[MIT License](http://opensource.org/licenses/mit-license.php)
+-	[MIT License](https://opensource.org/licenses/mit-license.php)
