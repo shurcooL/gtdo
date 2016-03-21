@@ -36,13 +36,13 @@ import (
 	"github.com/shurcooL/go/gists/gist7390843"
 	"github.com/shurcooL/go/gists/gist7480523"
 	"github.com/shurcooL/go/gzip_file_server"
-	vcs2 "github.com/shurcooL/go/vcs"
 	"github.com/shurcooL/go/vfs_util"
 	"github.com/shurcooL/gtdo/gtdo"
 	"github.com/shurcooL/gtdo/internal/sanitizedanchorname"
 	"github.com/shurcooL/gtdo/page"
 	"github.com/shurcooL/highlight_go"
 	"github.com/shurcooL/httpfs/html/vfstemplate"
+	"github.com/shurcooL/vcsstate"
 	"github.com/sourcegraph/annotate"
 	"golang.org/x/net/html"
 	go_vcs "golang.org/x/tools/go/vcs"
@@ -564,8 +564,13 @@ func tryLocalGopath(importPath, rev string) (
 		return nil, "", "", "", fmt.Errorf("no local repo for %q", importPath)
 	}
 
-	repoImportPath = repoRoot.repoImportPath
-	repo, err = vcs.Open(repoRoot.vcsRepo.Type().VcsType(), repoRoot.rootPath)
+	vcsRepo, err := vcsstate.NewVCS(repoRoot.VCS)
+	if err != nil {
+		return nil, "", "", "", err
+	}
+
+	repoImportPath = repoRoot.Root
+	repo, err = vcs.Open(repoRoot.VCS.Cmd, repoRoot.Dir)
 	if err != nil {
 		return nil, "", "", "", fmt.Errorf("vcs.Open: %v", err)
 	}
@@ -573,7 +578,7 @@ func tryLocalGopath(importPath, rev string) (
 	if rev != "" {
 		commitId, err = repo.ResolveRevision(rev)
 	} else {
-		commitId, err = repo.ResolveBranch(repoRoot.vcsRepo.GetDefaultBranch())
+		commitId, err = repo.ResolveBranch(vcsRepo.DefaultBranch())
 	}
 	if err != nil {
 		return nil, "", "", "", err
@@ -591,7 +596,7 @@ func tryLocalGopath(importPath, rev string) (
 		}
 	}
 
-	return repo, repoImportPath, commitId, repoRoot.vcsRepo.GetDefaultBranch(), nil
+	return repo, repoImportPath, commitId, vcsRepo.DefaultBranch(), nil
 }
 
 func tryLocalGopathNoVCS(importPath string) (
@@ -636,12 +641,21 @@ func tryRemote(importPath, rev string) (
 		return nil, nil, "", "", "", errors.New("no backing vcsstore specified")
 	}
 
-	repoImportPath, cloneURL, vcsRepo, err := importPathToRepoRoot(importPath)
+	rr, err := go_vcs.RepoRootForImportPath(importPath, true)
 	if err != nil {
 		return nil, nil, "", "", "", err
 	}
+	if rr.VCS.Cmd != "git" && rr.VCS.Cmd != "hg" {
+		return nil, nil, "", "", "", fmt.Errorf("unsupported rr.VCS.Cmd: %v", rr.VCS.Cmd)
+	}
 
-	rs := repoSpec{vcsType: vcsRepo.Type().VcsType(), cloneURL: cloneURL}
+	repoImportPath = rr.Root
+	rs := repoSpec{vcsType: rr.VCS.Cmd, cloneURL: rr.Repo}
+
+	vcsRepo, err := vcsstate.NewVCS(rr.VCS)
+	if err != nil {
+		return nil, nil, "", "", "", err
+	}
 
 	u, err := url.Parse(rs.cloneURL)
 	if err != nil {
@@ -655,7 +669,7 @@ func tryRemote(importPath, rev string) (
 	if rev != "" {
 		commitId, err = repo.ResolveRevision(rev)
 	} else {
-		commitId, err = repo.ResolveBranch(vcsRepo.GetDefaultBranch())
+		commitId, err = repo.ResolveBranch(vcsRepo.DefaultBranch())
 	}
 	if err != nil {
 		_, err1 := repo.(vcs.RemoteUpdater).UpdateEverything(vcs.RemoteOpts{})
@@ -667,7 +681,7 @@ func tryRemote(importPath, rev string) (
 		if rev != "" {
 			commitId, err1 = repo.ResolveRevision(rev)
 		} else {
-			commitId, err1 = repo.ResolveBranch(vcsRepo.GetDefaultBranch())
+			commitId, err1 = repo.ResolveBranch(vcsRepo.DefaultBranch())
 		}
 		if err1 != nil {
 			return nil, nil, "", "", "", NewMultipleErrors(err, err1)
@@ -677,43 +691,22 @@ func tryRemote(importPath, rev string) (
 		fmt.Println("tryRemote: worked on first try")
 	}
 
-	return repo, &rs, repoImportPath, commitId, vcsRepo.GetDefaultBranch(), nil
+	return repo, &rs, repoImportPath, commitId, vcsRepo.DefaultBranch(), nil
 }
 
-func importPathToRepoRoot(importPath string) (
-	repoImportPath string,
-	cloneURL string,
-	vcsRepo vcs2.Vcs,
-	err error,
-) {
-	rr, err := go_vcs.RepoRootForImportPath(importPath, true)
-	if err != nil {
-		return "", "", nil, err
-	}
+type RepoRootLocal struct {
+	VCS *go_vcs.Cmd
 
-	repoImportPath = rr.Root
-	cloneURL = rr.Repo
+	// Dir is the path of repository.
+	Dir string
 
-	switch rr.VCS.Cmd {
-	case "git":
-		vcsRepo = vcs2.NewFromType(vcs2.Git)
-	case "hg":
-		vcsRepo = vcs2.NewFromType(vcs2.Hg)
-	default:
-		return "", "", nil, errors.New("unsupported rr.VCS.Cmd: " + rr.VCS.Cmd)
-	}
-
-	return repoImportPath, cloneURL, vcsRepo, nil
-}
-
-type repoRootLocal struct {
-	repoImportPath string
-	rootPath       string
-	vcsRepo        vcs2.Vcs
+	// Root is the import path corresponding to the root of the
+	// repository.
+	Root string
 }
 
 // importPathToRepoRootLocal assumes no duplicate overlapping repositories.
-func importPathToRepoRootLocal(importPath string) (repoRootLocal, error) {
+func importPathToRepoRootLocal(importPath string) (RepoRootLocal, error) {
 	elems := strings.Split(importPath, "/")
 	gopathEntries := filepath.SplitList(build.Default.GOPATH)
 
@@ -721,20 +714,31 @@ func importPathToRepoRootLocal(importPath string) (repoRootLocal, error) {
 		for _, gopathEntry := range gopathEntries {
 			repoImportPath := path.Join(elems[:idx+1]...)
 			rootPath := filepath.Join(gopathEntry, "src", filepath.FromSlash(repoImportPath))
-			vcsRepo := vcs2.New(rootPath)
-			if vcsRepo == nil {
+			vcs := vcsInDir(rootPath)
+			if vcs == nil {
 				continue
 			}
 
-			return repoRootLocal{
-				repoImportPath: repoImportPath,
-				rootPath:       rootPath,
-				vcsRepo:        vcsRepo,
+			return RepoRootLocal{
+				VCS:  vcs,
+				Dir:  rootPath,
+				Root: repoImportPath,
 			}, nil
 		}
 	}
 
-	return repoRootLocal{}, os.ErrNotExist
+	return RepoRootLocal{}, os.ErrNotExist
+}
+
+// vcsInDir inspects dir to determine if it contains a supported version control system.
+// It returns nil if there isn't one.
+func vcsInDir(dir string) *go_vcs.Cmd {
+	for _, vcs := range []string{"git", "hg"} {
+		if fi, err := os.Stat(filepath.Join(dir, "."+vcs)); err == nil && fi.IsDir() {
+			return go_vcs.ByCmd(vcs)
+		}
+	}
+	return nil
 }
 
 func buildContextUsingFS(fs vfs.FileSystem) build.Context {

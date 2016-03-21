@@ -125,7 +125,7 @@ func (ru *repoUpdater) worker() {
 
 // repoSpec identifies a repository for go-vcs purposes.
 type repoSpec struct {
-	vcsType  string
+	vcsType  string // "git" or "hg".
 	cloneURL string
 }
 
