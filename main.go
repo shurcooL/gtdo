@@ -30,11 +30,8 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/shurcooL/frontend/checkbox"
 	"github.com/shurcooL/frontend/select_menu"
-	"github.com/shurcooL/go/exp/12"
-	"github.com/shurcooL/go/gists/gist5504644"
 	"github.com/shurcooL/go/gists/gist5639599"
 	"github.com/shurcooL/go/gists/gist7390843"
-	"github.com/shurcooL/go/gists/gist7480523"
 	"github.com/shurcooL/go/gzip_file_server"
 	"github.com/shurcooL/go/vfs_util"
 	"github.com/shurcooL/gtdo/gtdo"
@@ -524,27 +521,6 @@ func tryLocalGoroot(importPath string) (
 	}
 
 	return nil, fs, nil
-}
-
-func goPackageFromImportPath(importPath string) *gist7480523.GoPackage {
-	bpkg, bpkgErr := gist5504644.BuildPackageFromImportPath(importPath)
-	if bpkg == nil || bpkg.Dir == "" {
-		return nil
-	}
-
-	if bpkg.ConflictDir != "" {
-		fmt.Fprintf(os.Stderr, "warning: ConflictDir=%q (Dir=%q)\n", bpkg.ConflictDir, bpkg.Dir)
-		return nil
-	}
-
-	goPackage := &gist7480523.GoPackage{
-		Bpkg:    bpkg,
-		BpkgErr: bpkgErr,
-
-		Dir: exp12.LookupDirectory(bpkg.Dir),
-	}
-
-	return goPackage
 }
 
 func tryLocalGopath(importPath, rev string) (
