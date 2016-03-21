@@ -33,7 +33,6 @@ import (
 	"github.com/shurcooL/go/gists/gist5639599"
 	"github.com/shurcooL/go/gists/gist7390843"
 	"github.com/shurcooL/go/gzip_file_server"
-	"github.com/shurcooL/go/vfs_util"
 	"github.com/shurcooL/gtdo/gtdo"
 	"github.com/shurcooL/gtdo/internal/sanitizedanchorname"
 	"github.com/shurcooL/gtdo/page"
@@ -482,7 +481,7 @@ func try(importPath, rev string) (
 		return source, nil, nil, "", nil, nil, nil, "", err
 	}
 
-	fs = vfs_util.NewPrefixFS(fs, "/virtual-go-workspace/src/"+repoImportPath)
+	fs = NewPrefixFS(fs, "/virtual-go-workspace/src/"+repoImportPath)
 
 	// Verify the import path is an existing subdirectory (it may exist on one branch, but not another).
 	if fi, err := fs.Stat("/virtual-go-workspace/src/" + importPath); err != nil || !fi.IsDir() {
@@ -511,7 +510,7 @@ func tryLocalGoroot(importPath string) (
 		return nil, nil, errors.New("package is not in GOROOT")
 	}
 
-	fs = vfs_util.NewPrefixFS(fs, "/virtual-go-workspace/src")
+	fs = NewPrefixFS(fs, "/virtual-go-workspace/src")
 
 	context := buildContextUsingFS(fs)
 	context.GOROOT = "/virtual-go-workspace"
@@ -588,7 +587,7 @@ func tryLocalGopathNoVCS(importPath string) (
 
 	fs = vfs.OS(bpkg.SrcRoot)
 
-	fs = vfs_util.NewPrefixFS(fs, "/virtual-go-workspace/src")
+	fs = NewPrefixFS(fs, "/virtual-go-workspace/src")
 
 	context := buildContextUsingFS(fs)
 	context.GOPATH = "/virtual-go-workspace"
