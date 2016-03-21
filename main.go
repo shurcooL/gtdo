@@ -564,11 +564,6 @@ func tryLocalGopath(importPath, rev string) (
 		return nil, "", "", "", fmt.Errorf("no local repo for %q", importPath)
 	}
 
-	vcsRepo, err := vcsstate.NewVCS(repoRoot.VCS)
-	if err != nil {
-		return nil, "", "", "", err
-	}
-
 	repoImportPath = repoRoot.Root
 	repo, err = vcs.Open(repoRoot.VCS.Cmd, repoRoot.Dir)
 	if err != nil {
@@ -578,7 +573,7 @@ func tryLocalGopath(importPath, rev string) (
 	if rev != "" {
 		commitId, err = repo.ResolveRevision(rev)
 	} else {
-		commitId, err = repo.ResolveBranch(vcsRepo.DefaultBranch())
+		commitId, err = repo.ResolveBranch(repoRoot.State.DefaultBranch())
 	}
 	if err != nil {
 		return nil, "", "", "", err
@@ -596,7 +591,7 @@ func tryLocalGopath(importPath, rev string) (
 		}
 	}
 
-	return repo, repoImportPath, commitId, vcsRepo.DefaultBranch(), nil
+	return repo, repoImportPath, commitId, repoRoot.State.DefaultBranch(), nil
 }
 
 func tryLocalGopathNoVCS(importPath string) (
@@ -649,19 +644,16 @@ func tryRemote(importPath, rev string) (
 		return nil, nil, "", "", "", fmt.Errorf("unsupported rr.VCS.Cmd: %v", rr.VCS.Cmd)
 	}
 
-	repoImportPath = rr.Root
-	rs := repoSpec{vcsType: rr.VCS.Cmd, cloneURL: rr.Repo}
-
 	vcsRepo, err := vcsstate.NewVCS(rr.VCS)
 	if err != nil {
 		return nil, nil, "", "", "", err
 	}
 
-	u, err := url.Parse(rs.cloneURL)
+	u, err := url.Parse(rr.Repo)
 	if err != nil {
 		return nil, nil, "", "", "", err
 	}
-	repo, err = vs.Repository(rs.vcsType, u)
+	repo, err = vs.Repository(rr.VCS.Cmd, u)
 	if err != nil {
 		return nil, nil, "", "", "", err
 	}
@@ -691,11 +683,13 @@ func tryRemote(importPath, rev string) (
 		fmt.Println("tryRemote: worked on first try")
 	}
 
-	return repo, &rs, repoImportPath, commitId, vcsRepo.DefaultBranch(), nil
+	rs := repoSpec{vcsType: rr.VCS.Cmd, cloneURL: rr.Repo} // TODO: Avoid having to return a pointer. It's not optional in this context.
+	return repo, &rs, rr.Root, commitId, vcsRepo.DefaultBranch(), nil
 }
 
 type RepoRootLocal struct {
-	VCS *go_vcs.Cmd
+	VCS   *go_vcs.Cmd
+	State vcsstate.VCS
 
 	// Dir is the path of repository.
 	Dir string
@@ -718,11 +712,16 @@ func importPathToRepoRootLocal(importPath string) (RepoRootLocal, error) {
 			if vcs == nil {
 				continue
 			}
+			state, err := vcsstate.NewVCS(vcs)
+			if err != nil {
+				continue
+			}
 
 			return RepoRootLocal{
-				VCS:  vcs,
-				Dir:  rootPath,
-				Root: repoImportPath,
+				VCS:   vcs,
+				State: state,
+				Dir:   rootPath,
+				Root:  repoImportPath,
 			}, nil
 		}
 	}
