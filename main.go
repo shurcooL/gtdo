@@ -31,8 +31,8 @@ import (
 	"github.com/shurcooL/frontend/checkbox"
 	"github.com/shurcooL/frontend/select_menu"
 	"github.com/shurcooL/go/gists/gist5639599"
-	"github.com/shurcooL/go/gists/gist7390843"
 	"github.com/shurcooL/go/gzip_file_server"
+	"github.com/shurcooL/go/httpstoppable"
 	"github.com/shurcooL/gtdo/gtdo"
 	"github.com/shurcooL/gtdo/internal/sanitizedanchorname"
 	"github.com/shurcooL/gtdo/page"
@@ -133,7 +133,7 @@ Disallow: /
 		stopServerChan <- struct{}{}
 	}()
 
-	err = gist7390843.ListenAndServeStoppable(*httpFlag, nil, stopServerChan)
+	err = httpstoppable.ListenAndServe(*httpFlag, nil, stopServerChan)
 	if err != nil {
 		log.Println("ListenAndServeStoppable:", err)
 	}
