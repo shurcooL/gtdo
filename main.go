@@ -30,9 +30,9 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/shurcooL/frontend/checkbox"
 	"github.com/shurcooL/frontend/select_menu"
-	"github.com/shurcooL/go/gists/gist5639599"
 	"github.com/shurcooL/go/gzip_file_server"
 	"github.com/shurcooL/go/httpstoppable"
+	"github.com/shurcooL/go/printerutil"
 	"github.com/shurcooL/gtdo/gtdo"
 	"github.com/shurcooL/gtdo/internal/sanitizedanchorname"
 	"github.com/shurcooL/gtdo/page"
@@ -326,7 +326,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 					case *ast.FuncDecl:
 						name := d.Name.String()
 						if d.Recv != nil {
-							name = strings.TrimPrefix(gist5639599.SprintAstBare(d.Recv.List[0].Type), "*") + "." + name
+							name = strings.TrimPrefix(printerutil.SprintAstBare(d.Recv.List[0].Type), "*") + "." + name
 							anns = append(anns, annotateNodes(fset, d.Recv, d.Name, fmt.Sprintf(`<h3 id="%s">`, name), `</h3>`, 1))
 						} else {
 							anns = append(anns, annotateNode(fset, d.Name, fmt.Sprintf(`<h3 id="%s">`, name), `</h3>`, 1))
