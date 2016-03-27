@@ -8,17 +8,19 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/shurcooL/go/u/u5"
+	"github.com/shurcooL/go/gddo"
 	"github.com/shurcooL/gtdo/gtdo"
 	"github.com/shurcooL/gtdo/page"
 )
 
+var gddoClient gddo.Client
+
 func init() {
 	switch *productionFlag {
 	case true:
-		u5.UserAgent = "http://gotools.org/"
+		gddoClient.UserAgent = "https://gotools.org"
 	case false:
-		u5.UserAgent = "https://github.com/shurcooL/gtdo"
+		gddoClient.UserAgent = "https://github.com/shurcooL/gtdo"
 	}
 }
 
@@ -62,7 +64,7 @@ func importersHandler(w http.ResponseWriter, req *http.Request) {
 		RepoImportPath     string
 		DirExists          bool
 		Bpkg               *build.Package
-		Importers          u5.Importers
+		Importers          gddo.Importers
 		Folders            []string
 	}{
 		FrontendState:      frontendState,
@@ -93,7 +95,7 @@ func importersHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if fs != nil && bpkg != nil {
-		if importers, err := u5.GetGodocOrgImporters(bpkg.ImportPath); err == nil {
+		if importers, err := gddoClient.GetImporters(bpkg.ImportPath); err == nil {
 			data.Importers = importers
 		} else {
 			log.Println(err)
