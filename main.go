@@ -419,7 +419,9 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 
 // afterPackageVisit is called after a package is visited.
 func afterPackageVisit(bpkg *build.Package, repoSpec *repoSpec) {
-	if bpkg != nil && bpkg.Name != "" {
+	conflictingImportComment := bpkg.ImportComment != "" && bpkg.ImportComment != bpkg.ImportPath
+	log.Printf("ImportComment = %q, conflicting import comment: %v\n", bpkg.ImportComment, conflictingImportComment)
+	if bpkg != nil && bpkg.Name != "" && !conflictingImportComment {
 		sendToTop(bpkg.ImportPath)
 	}
 	// RepoUpdater.Enqueue(*repoSpec) now happens via SSE path, later on.
@@ -490,7 +492,7 @@ func try(importPath, rev string) (
 
 	context := buildContextUsingFS(fs)
 	context.GOPATH = "/virtual-go-workspace"
-	bpkg, err = context.Import(importPath, "", 0)
+	bpkg, err = context.Import(importPath, "", build.ImportComment)
 	if bpkg == nil || bpkg.Dir == "" {
 		return source, nil, repoSpec, repoImportPath, commit, fs, branchNames, defaultBranch, nil
 	}
@@ -753,7 +755,6 @@ func buildContextUsingFS(fs vfs.FileSystem) build.Context {
 // importPathURL returns a URL to the target importPath, preserving query parameters.
 //
 // It strips out the revision parameter if the target package lies outside of the current repository.
-//func importPathURL(importPath, repoImportPath string, query url.Values) template.URL {
 func importPathURL(importPath, repoImportPath string, rawQuery string) template.URL {
 	query, _ := url.ParseQuery(rawQuery)
 	// If it crosses the repository boundary, do not persist the revision.
