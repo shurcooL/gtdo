@@ -19,12 +19,12 @@ type localVCSStore struct {
 }
 
 // Repository opens the specified repo, cloning it if it doesn't already exist.
-func (c *localVCSStore) Repository(vcsType string, cloneURL *url.URL) (vcs.Repository, error) {
-	repoDir := filepath.Join(c.dir, vcsType, cloneURL.Scheme, filepath.FromSlash(pathpkg.Join(cloneURL.Host, cloneURL.Path)))
+func (c *localVCSStore) Repository(vcsType string, cloneURL *url.URL) (_ vcs.Repository, repoDir string, _ error) {
+	repoDir = filepath.Join(c.dir, vcsType, cloneURL.Scheme, filepath.FromSlash(pathpkg.Join(cloneURL.Host, cloneURL.Path)))
 	repo, err := vcs.Open(vcsType, repoDir)
 	if err != nil && os.IsNotExist(err) {
 		opt := vcs.CloneOpt{Bare: true, Mirror: true, RemoteOpts: vcs.RemoteOpts{}}
 		repo, err = vcs.Clone(vcsType, cloneURL.String(), repoDir, opt)
 	}
-	return repo, err
+	return repo, repoDir, err
 }

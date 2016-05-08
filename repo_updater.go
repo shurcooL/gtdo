@@ -91,7 +91,7 @@ func (ru *repoUpdater) worker() {
 			log.Println(err)
 			continue
 		}
-		repo, err := vs.Repository(rs.vcsType, u)
+		repo, _, err := vs.Repository(rs.vcsType, u)
 		if err != nil {
 			log.Println(err)
 			continue

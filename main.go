@@ -133,6 +133,8 @@ Disallow: /
 		stopServerChan <- struct{}{}
 	}()
 
+	log.Println("Started.")
+
 	err = httpstoppable.ListenAndServe(*httpFlag, nil, stopServerChan)
 	if err != nil {
 		log.Println("ListenAndServeStoppable:", err)
@@ -547,10 +549,16 @@ func tryLocalGopath(importPath, rev string) (
 		return nil, "", "", "", fmt.Errorf("vcs.Open: %v", err)
 	}
 
+	// Use locally checked out branch as the default branch for repos in GOPATH.
+	defaultBranch, err = repoRoot.State.Branch(repoRoot.Dir)
+	if err != nil {
+		return nil, "", "", "", err
+	}
+
 	if rev != "" {
 		commitId, err = repo.ResolveRevision(rev)
 	} else {
-		commitId, err = repo.ResolveBranch(repoRoot.State.DefaultBranch())
+		commitId, err = repo.ResolveBranch(defaultBranch)
 	}
 	if err != nil {
 		return nil, "", "", "", err
@@ -568,7 +576,7 @@ func tryLocalGopath(importPath, rev string) (
 		}
 	}
 
-	return repo, repoImportPath, commitId, repoRoot.State.DefaultBranch(), nil
+	return repo, repoImportPath, commitId, defaultBranch, nil
 }
 
 func tryLocalGopathNoVCS(importPath string) (
@@ -630,7 +638,14 @@ func tryRemote(importPath, rev string) (
 	if err != nil {
 		return nil, nil, "", "", "", err
 	}
-	repo, err = vs.Repository(rr.VCS.Cmd, u)
+	var repoDir string
+	repo, repoDir, err = vs.Repository(rr.VCS.Cmd, u)
+	if err != nil {
+		return nil, nil, "", "", "", err
+	}
+
+	// Use remotely checked out branch as the default branch for remote repos.
+	defaultBranch, _, err = vcsRepo.RemoteBranchAndRevision(repoDir)
 	if err != nil {
 		return nil, nil, "", "", "", err
 	}
@@ -638,7 +653,7 @@ func tryRemote(importPath, rev string) (
 	if rev != "" {
 		commitId, err = repo.ResolveRevision(rev)
 	} else {
-		commitId, err = repo.ResolveBranch(vcsRepo.DefaultBranch())
+		commitId, err = repo.ResolveBranch(defaultBranch)
 	}
 	if err != nil {
 		_, err1 := repo.(vcs.RemoteUpdater).UpdateEverything(vcs.RemoteOpts{})
@@ -650,7 +665,7 @@ func tryRemote(importPath, rev string) (
 		if rev != "" {
 			commitId, err1 = repo.ResolveRevision(rev)
 		} else {
-			commitId, err1 = repo.ResolveBranch(vcsRepo.DefaultBranch())
+			commitId, err1 = repo.ResolveBranch(defaultBranch)
 		}
 		if err1 != nil {
 			return nil, nil, "", "", "", NewMultipleErrors(err, err1)
@@ -661,7 +676,7 @@ func tryRemote(importPath, rev string) (
 	}
 
 	rs := repoSpec{vcsType: rr.VCS.Cmd, cloneURL: rr.Repo} // TODO: Avoid having to return a pointer. It's not optional in this context.
-	return repo, &rs, rr.Root, commitId, vcsRepo.DefaultBranch(), nil
+	return repo, &rs, rr.Root, commitId, defaultBranch, nil
 }
 
 type RepoRootLocal struct {

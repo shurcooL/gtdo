@@ -11,7 +11,7 @@ import (
 	"golang.org/x/tools/godoc/vfs"
 )
 
-// TOOD: This file has messy old code. Clean it up.
+// TODO: This file has messy old code. Clean it up.
 
 type prefixFileSystem struct {
 	real   vfs.FileSystem
