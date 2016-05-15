@@ -416,14 +416,17 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	afterPackageVisit(bpkg, repoSpec)
+	sendToTopMaybe(bpkg)
 }
 
-// afterPackageVisit is called after a package is visited.
-func afterPackageVisit(bpkg *build.Package, repoSpec *repoSpec) {
+// sendToTopMaybe sends package to top, if bpkg is not nil and doesn't have a conflicting import comment.
+func sendToTopMaybe(bpkg *build.Package) {
+	if bpkg == nil {
+		return
+	}
 	conflictingImportComment := bpkg.ImportComment != "" && bpkg.ImportComment != bpkg.ImportPath
 	log.Printf("ImportComment = %q, conflicting import comment: %v\n", bpkg.ImportComment, conflictingImportComment)
-	if bpkg != nil && bpkg.Name != "" && !conflictingImportComment {
+	if bpkg.Name != "" && !conflictingImportComment {
 		sendToTop(bpkg.ImportPath)
 	}
 	// RepoUpdater.Enqueue(*repoSpec) now happens via SSE path, later on.

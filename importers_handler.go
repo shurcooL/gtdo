@@ -119,5 +119,5 @@ func importersHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	afterPackageVisit(bpkg, repoSpec)
+	sendToTopMaybe(bpkg)
 }

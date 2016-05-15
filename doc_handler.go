@@ -130,7 +130,7 @@ func summaryHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	afterPackageVisit(bpkg, repoSpec)
+	sendToTopMaybe(bpkg)
 }
 
 func importsHandler(w http.ResponseWriter, req *http.Request) {
@@ -249,7 +249,7 @@ func importsHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	afterPackageVisit(bpkg, repoSpec)
+	sendToTopMaybe(bpkg)
 }
 
 func docPackage(fs vfs.FileSystem, bpkg *build.Package) (*doc.Package, error) {
