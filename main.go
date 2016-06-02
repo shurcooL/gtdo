@@ -318,7 +318,10 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 				fset := token.NewFileSet()
 				fileAst, err := parser.ParseFile(fset, filepath.Join(bpkg.Dir, goFile), src, parser.ParseComments)
 				if err != nil {
-					panic(err)
+					log.Println("parser.ParseFile:", err)
+				}
+				if fileAst == nil {
+					panic(fmt.Errorf("internal error: this shouldn't happen as long as parser.ParseFile is still given []byte as src"))
 				}
 
 				anns, err := highlight_go.Annotate(src, htmlAnnotator)
