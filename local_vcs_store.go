@@ -22,7 +22,7 @@ type localVCSStore struct {
 func (c *localVCSStore) Repository(vcsType string, cloneURL *url.URL) (_ vcs.Repository, repoDir string, _ error) {
 	repoDir = filepath.Join(c.dir, vcsType, cloneURL.Scheme, filepath.FromSlash(pathpkg.Join(cloneURL.Host, cloneURL.Path)))
 	repo, err := vcs.Open(vcsType, repoDir)
-	if err != nil && os.IsNotExist(err) {
+	if os.IsNotExist(err) {
 		opt := vcs.CloneOpt{Bare: true, Mirror: true, RemoteOpts: vcs.RemoteOpts{}}
 		repo, err = vcs.Clone(vcsType, cloneURL.String(), repoDir, opt)
 	}
