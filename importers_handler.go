@@ -11,6 +11,7 @@ import (
 	"github.com/shurcooL/go/gddo"
 	"github.com/shurcooL/gtdo/gtdo"
 	"github.com/shurcooL/gtdo/page"
+	"golang.org/x/net/lex/httplex"
 )
 
 var gddoClient gddo.Client
@@ -104,7 +105,7 @@ func importersHandler(w http.ResponseWriter, req *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	var wr io.Writer = w
-	if isGzipEncodingAccepted(req) {
+	if httplex.HeaderValuesContainsToken(req.Header["Accept-Encoding"], "gzip") {
 		// Use gzip compression.
 		w.Header().Set("Content-Encoding", "gzip")
 		gw := gzip.NewWriter(w)

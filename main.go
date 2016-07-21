@@ -41,6 +41,7 @@ import (
 	"github.com/shurcooL/vcsstate"
 	"github.com/sourcegraph/annotate"
 	"golang.org/x/net/html"
+	"golang.org/x/net/lex/httplex"
 	go_vcs "golang.org/x/tools/go/vcs"
 	"golang.org/x/tools/godoc/vfs"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
@@ -404,7 +405,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	var wr io.Writer = w
-	if isGzipEncodingAccepted(req) {
+	if httplex.HeaderValuesContainsToken(req.Header["Accept-Encoding"], "gzip") {
 		// Use gzip compression.
 		w.Header().Set("Content-Encoding", "gzip")
 		gw := gzip.NewWriter(w)
@@ -817,14 +818,4 @@ func (me multipleErrors) Error() string {
 		fmt.Fprintln(&buf, err.Error())
 	}
 	return buf.String()
-}
-
-// isGzipEncodingAccepted returns true if the request includes "gzip" under Accept-Encoding header.
-func isGzipEncodingAccepted(req *http.Request) bool {
-	for _, v := range strings.Split(req.Header.Get("Accept-Encoding"), ",") {
-		if strings.TrimSpace(v) == "gzip" {
-			return true
-		}
-	}
-	return false
 }
