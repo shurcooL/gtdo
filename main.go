@@ -30,7 +30,6 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/shurcooL/frontend/checkbox"
 	"github.com/shurcooL/frontend/select_menu"
-	"github.com/shurcooL/go/gzip_file_server"
 	"github.com/shurcooL/go/httpstoppable"
 	"github.com/shurcooL/go/printerutil"
 	"github.com/shurcooL/gtdo/gtdo"
@@ -38,6 +37,7 @@ import (
 	"github.com/shurcooL/gtdo/page"
 	"github.com/shurcooL/highlight_go"
 	"github.com/shurcooL/httpfs/html/vfstemplate"
+	"github.com/shurcooL/httpgzip"
 	"github.com/shurcooL/vcsstate"
 	"github.com/sourcegraph/annotate"
 	"golang.org/x/net/html"
@@ -93,7 +93,7 @@ func main() {
 Disallow: /
 `)
 	})
-	fileServer := gzip_file_server.New(assets)
+	fileServer := httpgzip.FileServer(assets, httpgzip.FileServerOptions{ServeError: httpgzip.Detailed})
 	http.Handle("/assets/", fileServer)
 	http.Handle("/assets/octicons/", http.StripPrefix("/assets", fileServer))
 	http.Handle("/assets/select-list-view.css", http.StripPrefix("/assets", fileServer))
