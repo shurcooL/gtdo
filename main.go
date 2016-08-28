@@ -168,10 +168,10 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if req.URL.Path == "/" {
-		recentlyViewed.lock.RLock()
+		recentlyViewed.mu.RLock()
 		recentlyViewed.Production = *productionFlag
 		err := t.ExecuteTemplate(w, "index.html.tmpl", recentlyViewed)
-		recentlyViewed.lock.RUnlock()
+		recentlyViewed.mu.RUnlock()
 		if err != nil {
 			log.Printf("t.ExecuteTemplate: %v\n", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)

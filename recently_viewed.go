@@ -6,17 +6,17 @@ import (
 	"sync"
 )
 
-var recentlyViewed struct {
+var recentlyViewed = struct {
+	mu       *sync.RWMutex
 	Packages [10]string // Index 0 is the top (most recently viewed Go package).
-	lock     sync.RWMutex
 
 	Production bool
-}
+}{mu: new(sync.RWMutex)}
 
 // sendToTop sends importPath to top of recentlyViewed.Packages if it's not already present.
 func sendToTop(importPath string) {
-	recentlyViewed.lock.Lock()
-	defer recentlyViewed.lock.Unlock()
+	recentlyViewed.mu.Lock()
+	defer recentlyViewed.mu.Unlock()
 	// Check if package is already present, then do nothing.
 	for _, p := range recentlyViewed.Packages {
 		if p == importPath {
@@ -39,9 +39,9 @@ func saveState(path string) error {
 
 	enc := gob.NewEncoder(f)
 
-	recentlyViewed.lock.RLock()
+	recentlyViewed.mu.RLock()
 	err = enc.Encode(recentlyViewed.Packages)
-	recentlyViewed.lock.RUnlock()
+	recentlyViewed.mu.RUnlock()
 
 	return err
 }
