@@ -293,11 +293,11 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		for _, goFile := range goFiles {
 			fi, err := fs.Stat(path.Join(bpkg.Dir, goFile))
 			if err != nil {
-				log.Panicln(fs.String(), "fs.Stat:", path.Join(bpkg.Dir, goFile), err)
+				panic(fmt.Errorf("%v: fs.Stat(%q): %v", fs.String(), path.Join(bpkg.Dir, goFile), err))
 			}
 			file, err := fs.Open(path.Join(bpkg.Dir, goFile))
 			if err != nil {
-				log.Panicln(fs.String(), "fs.Open:", path.Join(bpkg.Dir, goFile), err)
+				panic(fmt.Errorf("%v: fs.Open(%q): %v", fs.String(), path.Join(bpkg.Dir, goFile), err))
 			}
 			src, err := ioutil.ReadAll(file)
 			if err != nil {
