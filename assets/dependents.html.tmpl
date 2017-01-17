@@ -16,9 +16,9 @@
 							<div style="margin-top: 20px;"><i>(this subdirectory doesn't exist, maybe it exists on another branch?)</i></div>
 						{{end}}
 						<article class="tool-page" style="margin-top: 30px;">
-						{{with .Importers}}
+						{{with .Dependents}}
 							<div>
-								<h3>Importers</h3>
+								<h3>Dependents</h3>
 								{{with .Results}}
 									<ul>{{range .}}<li><a href="{{importPathURL .Path $.RepoImportPath $.RawQuery}}"><code title="{{.Synopsis}}">{{.Path}}</code></a></li>{{end}}</ul>
 								{{else}}
@@ -26,10 +26,10 @@
 								{{end}}
 							</div>
 						{{else}}
-							<div>Failed to fetch importers.</div>
+							<div>Failed to fetch dependents.</div>
 						{{end}}
 						<p><a href="https://godoc.org/{{.ImportPath}}?importers" target="_blank">Source</a>.</p>
-						<p>Note: Importers are based on latest master branch of all repositories, not the currently selected branch.</p>
+						<p>Note: Dependents are based on latest master branch of all repositories, not the currently selected branch.</p>
 						</article>
 					</div>
 				</div>

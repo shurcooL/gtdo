@@ -26,7 +26,7 @@ func Tabs(path string, rawQuery string) template.HTML {
 		{id: "summary", name: "Summary"},
 		{id: "", name: "Source Code"},
 		{id: "imports", name: "Imports"},
-		{id: "importers", name: "Importers"},
+		{id: "dependents", name: "Dependents"},
 	} {
 		a := &html.Node{Type: html.ElementNode, Data: atom.A.String()}
 		if tab.id == selectedTab {

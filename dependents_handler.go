@@ -25,7 +25,7 @@ func init() {
 	}
 }
 
-func importersHandler(w http.ResponseWriter, req *http.Request) {
+func dependentsHandler(w http.ResponseWriter, req *http.Request) {
 	importPath := req.URL.Path[1:]
 	rev := req.URL.Query().Get(gtdo.RevisionQueryParameter)
 
@@ -65,7 +65,7 @@ func importersHandler(w http.ResponseWriter, req *http.Request) {
 		RepoImportPath     string
 		DirExists          bool
 		Bpkg               *build.Package
-		Importers          gddo.Importers
+		Dependents         gddo.Importers
 		Folders            []string
 	}{
 		FrontendState:      frontendState,
@@ -96,8 +96,8 @@ func importersHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if fs != nil && bpkg != nil {
-		if importers, err := gddoClient.GetImporters(bpkg.ImportPath); err == nil {
-			data.Importers = importers
+		if dependents, err := gddoClient.GetImporters(bpkg.ImportPath); err == nil {
+			data.Dependents = dependents
 		} else {
 			log.Println(err)
 		}
@@ -113,7 +113,7 @@ func importersHandler(w http.ResponseWriter, req *http.Request) {
 		wr = gw
 	}
 
-	err = t.ExecuteTemplate(wr, "importers.html.tmpl", &data)
+	err = t.ExecuteTemplate(wr, "dependents.html.tmpl", &data)
 	if err != nil {
 		log.Printf("t.ExecuteTemplate: %v\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

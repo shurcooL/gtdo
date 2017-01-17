@@ -187,8 +187,8 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	case "imports":
 		importsHandler(w, req)
 		return
-	case "importers":
-		importersHandler(w, req)
+	case "dependents":
+		dependentsHandler(w, req)
 		return
 	}
 
