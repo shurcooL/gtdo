@@ -5,6 +5,7 @@ import (
 	"net/url"
 
 	"github.com/shurcooL/htmlg"
+	"github.com/shurcooL/octiconssvg"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 )
@@ -21,16 +22,18 @@ func Tabs(path string, rawQuery string) template.HTML {
 	for _, tab := range []struct {
 		id   string
 		name string
+		icon func() *html.Node
 		beta bool
 	}{
 		{id: "summary", name: "Summary"},
-		{id: "", name: "Source Code"},
+		{id: "", name: "Code", icon: octiconssvg.Code},
 		{id: "imports", name: "Imports"},
 		{id: "dependents", name: "Dependents"},
 	} {
 		a := &html.Node{Type: html.ElementNode, Data: atom.A.String()}
+		aClass := "tabnav-tab"
 		if tab.id == selectedTab {
-			a.Attr = []html.Attribute{{Key: atom.Class.String(), Val: "selected"}}
+			aClass += " selected"
 		} else {
 			q := query
 			if tab.id == "" {
@@ -46,6 +49,14 @@ func Tabs(path string, rawQuery string) template.HTML {
 				{Key: atom.Href.String(), Val: u.String()},
 			}
 		}
+		a.Attr = append(a.Attr, html.Attribute{Key: atom.Class.String(), Val: aClass})
+		if tab.icon != nil {
+			icon := htmlg.Span(tab.icon())
+			icon.Attr = append(icon.Attr, html.Attribute{
+				Key: atom.Style.String(), Val: "margin-right: 4px;",
+			})
+			a.AppendChild(icon)
+		}
 		a.AppendChild(htmlg.Text(tab.name))
 		if tab.beta {
 			span := &html.Node{
@@ -58,5 +69,12 @@ func Tabs(path string, rawQuery string) template.HTML {
 		ns = append(ns, a)
 	}
 
-	return htmlg.Render(ns...)
+	nav := &html.Node{
+		Type: html.ElementNode, Data: atom.Nav.String(),
+		Attr: []html.Attribute{{Key: atom.Class.String(), Val: "tabnav-tabs"}},
+	}
+	for _, n := range ns {
+		nav.AppendChild(n)
+	}
+	return htmlg.Render(htmlg.DivClass("tabnav", nav))
 }

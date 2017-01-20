@@ -13,15 +13,15 @@
 						{{if .Folders}}
 							<ul>{{range .Folders}}<li><a href="/{{$.ImportPath}}/{{.}}{{fullQuery $.RawQuery}}">{{.}}</a></li>{{end}}</ul>
 						{{end}}
-						<nav>{{.Tabs}}</nav>
+						{{.Tabs}}
 						{{if not .DirExists}}
 							<div style="margin-top: 20px;"><i>(this subdirectory doesn't exist, maybe it exists on another branch?)</i></div>
 						{{end}}
 						<article class="tool-page" style="margin-top: 30px;">
-						{{with .Dpkg}}
-							<article class="doc-summary">{{$.DocHTML}}</article>
+						{{if (and .Dpkg .DocHTML)}}
+							<article class="doc-summary">{{.DocHTML}}</article>
 						{{else}}
-							<div>No docs.</div>
+							<em>No docs.</em>
 						{{end}}
 						</article>
 					</div>
