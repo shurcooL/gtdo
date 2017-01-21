@@ -87,8 +87,9 @@ span.ln:hover {
 h1:hover .anchor, h2:hover .anchor, h3:hover .anchor, h4:hover .anchor, h5:hover .anchor, h6:hover .anchor {
 	display: inline;
 }
-.anchor-icon::before {
-	content: '\f05c'; /* https://octicons.github.com/icon/link/ */
+.anchor-icon {
+	display: inline-block;
+	vertical-align: middle;
 	color: black;
 	margin-left: 8px;
 	cursor: pointer;

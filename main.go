@@ -38,6 +38,7 @@ import (
 	"github.com/shurcooL/highlight_go"
 	"github.com/shurcooL/httpfs/html/vfstemplate"
 	"github.com/shurcooL/httpgzip"
+	"github.com/shurcooL/octiconssvg"
 	"github.com/shurcooL/vcsstate"
 	"github.com/sourcegraph/annotate"
 	"golang.org/x/net/html"
@@ -65,6 +66,18 @@ func loadTemplates() error {
 		"time":          humanize.Time,
 		"fullQuery":     fullQuery,
 		"importPathURL": importPathURL,
+		"octicon": func(name string) (template.HTML, error) {
+			icon := octiconssvg.Icon(name)
+			if icon == nil {
+				return "", fmt.Errorf("%q is not a valid Octicon symbol name", name)
+			}
+			var buf bytes.Buffer
+			err := html.Render(&buf, icon)
+			if err != nil {
+				return "", err
+			}
+			return template.HTML(buf.String()), nil
+		},
 
 		"json": func(in interface{}) (string, error) {
 			out, err := json.Marshal(in)
@@ -96,7 +109,6 @@ Disallow: /
 	})
 	fileServer := httpgzip.FileServer(assets, httpgzip.FileServerOptions{ServeError: httpgzip.Detailed})
 	http.Handle("/assets/", fileServer)
-	http.Handle("/assets/octicons/", http.StripPrefix("/assets", fileServer))
 	http.Handle("/assets/select-list-view.css", http.StripPrefix("/assets", fileServer))
 	http.Handle("/assets/table-of-contents.css", http.StripPrefix("/assets", fileServer))
 
@@ -381,7 +393,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 			}
 
 			lineCount := bytes.Count(src, []byte("\n"))
-			fmt.Fprintf(&buf, `<div><h2 id="%s">%s<a class="anchor" onclick="MustScrollTo(event, &#34;\&#34;%s\&#34;&#34;);"><span class="anchor-icon octicon"></span></a></h2>`, sanitizedanchorname.Create(goFile), html.EscapeString(goFile), sanitizedanchorname.Create(goFile)) // HACK.
+			fmt.Fprintf(&buf, `<div><h2 id="%s">%s<a class="anchor" onclick="MustScrollTo(event, &#34;\&#34;%s\&#34;&#34;);"><span class="anchor-icon">%s</span></a></h2>`, sanitizedanchorname.Create(goFile), html.EscapeString(goFile), sanitizedanchorname.Create(goFile), octiconsLink) // HACK.
 			io.WriteString(&buf, `<div class="highlight">`)
 			io.WriteString(&buf, `<div class="background"></div>`)
 			io.WriteString(&buf, `<div class="selection"></div>`)
@@ -819,3 +831,12 @@ func (me multipleErrors) Error() string {
 	}
 	return buf.String()
 }
+
+var octiconsLink = func() string {
+	var buf bytes.Buffer
+	err := html.Render(&buf, octiconssvg.Link())
+	if err != nil {
+		panic(err)
+	}
+	return buf.String()
+}()
