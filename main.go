@@ -25,12 +25,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/dustin/go-humanize"
 	"github.com/shurcooL/frontend/checkbox"
 	"github.com/shurcooL/frontend/select_menu"
-	"github.com/shurcooL/go/httpstoppable"
 	"github.com/shurcooL/go/printerutil"
 	"github.com/shurcooL/gtdo/gtdo"
 	"github.com/shurcooL/gtdo/internal/sanitizedanchorname"
@@ -138,19 +136,23 @@ Disallow: /
 		}))
 	}
 
-	stopServerChan := make(chan struct{})
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT)
+	server := &http.Server{Addr: *httpFlag}
+
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt)
 	go func() {
-		<-signalChan
-		stopServerChan <- struct{}{}
+		<-interrupt
+		err := server.Close()
+		if err != nil {
+			log.Println("server.Close:", err)
+		}
 	}()
 
 	log.Println("Started.")
 
-	err = httpstoppable.ListenAndServe(*httpFlag, nil, stopServerChan)
+	err = server.ListenAndServe()
 	if err != nil {
-		log.Println("ListenAndServeStoppable:", err)
+		log.Println("server.ListenAndServe:", err)
 	}
 
 	if *stateFileFlag != "" {
