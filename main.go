@@ -340,6 +340,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 				}
 
 				anns, err := highlight_go.Annotate(src, htmlAnnotator)
+				_ = err // TODO: Deal with returned error.
 
 				for _, decl := range fileAst.Decls {
 					switch d := decl.(type) {
@@ -516,6 +517,7 @@ func try(importPath, rev string) (
 	context := buildContextUsingFS(fs)
 	context.GOPATH = "/virtual-go-workspace"
 	bpkg, err = context.Import(importPath, "", build.ImportComment)
+	_ = err // TODO: Deal with returned error.
 	if bpkg == nil || bpkg.Dir == "" {
 		return source, nil, repoSpec, repoImportPath, commit, fs, branchNames, defaultBranch, nil
 	}
