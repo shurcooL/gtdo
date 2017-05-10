@@ -15,7 +15,7 @@ type handler func(w io.Writer, req *http.Request) error
 func (h handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if req.Method != "GET" {
 		w.Header().Set("Allow", "GET")
-		http.Error(w, "method should be GET", http.StatusMethodNotAllowed)
+		http.Error(w, "405 Method Not Allowed\n\nmethod should be GET", http.StatusMethodNotAllowed)
 		return
 	}
 	var buf bytes.Buffer
@@ -23,13 +23,13 @@ func (h handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	switch {
 	case os.IsNotExist(err):
 		log.Println(err)
-		http.Error(w, err.Error(), http.StatusNotFound)
+		http.Error(w, "404 Not Found\n\n"+err.Error(), http.StatusNotFound)
 	case os.IsPermission(err):
 		log.Println(err)
-		http.Error(w, err.Error(), http.StatusForbidden)
+		http.Error(w, "403 Forbidden\n\n"+err.Error(), http.StatusForbidden)
 	case err != nil:
 		log.Println(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "500 Internal Server Error\n\n"+err.Error(), http.StatusInternalServerError)
 	default:
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		io.Copy(w, &buf)

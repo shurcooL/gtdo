@@ -34,8 +34,7 @@ func (pv *pageViewer) NotifyOutdated() {
 func eventsHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Method != "GET" {
 		w.Header().Set("Allow", "GET")
-		log.Println("unexpected eventsHandler method:", req.Method)
-		http.Error(w, "Expected method to be GET... Does EventSource need something else too?", http.StatusMethodNotAllowed)
+		http.Error(w, "405 Method Not Allowed\n\nmethod should be GET", http.StatusMethodNotAllowed)
 		return
 	}
 
