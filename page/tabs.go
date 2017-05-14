@@ -76,5 +76,5 @@ func Tabs(path string, rawQuery string) template.HTML {
 	for _, n := range ns {
 		nav.AppendChild(n)
 	}
-	return htmlg.Render(htmlg.DivClass("tabnav", nav))
+	return template.HTML(htmlg.Render(htmlg.DivClass("tabnav", nav)))
 }

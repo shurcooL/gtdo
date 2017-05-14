@@ -31,11 +31,11 @@ func ImportPathElementsHTML(repoImportPath, importPath, rawQuery string) templat
 				Path:     "/" + path,
 				RawQuery: rawQuery,
 			}
-			ns = append(ns, htmlg.A(element, template.URL(url.String())))
+			ns = append(ns, htmlg.A(element, url.String()))
 		} else {
 			ns = append(ns, htmlg.Text(element))
 		}
 	}
 
-	return htmlg.Render(ns...)
+	return template.HTML(htmlg.Render(ns...))
 }
