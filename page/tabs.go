@@ -73,8 +73,6 @@ func Tabs(path string, rawQuery string) template.HTML {
 		Type: html.ElementNode, Data: atom.Nav.String(),
 		Attr: []html.Attribute{{Key: atom.Class.String(), Val: "tabnav-tabs"}},
 	}
-	for _, n := range ns {
-		nav.AppendChild(n)
-	}
+	htmlg.AppendChildren(nav, ns...)
 	return template.HTML(htmlg.Render(htmlg.DivClass("tabnav", nav)))
 }
