@@ -103,6 +103,7 @@ func main() {
 	http.Handle("/favicon.ico", http.NotFoundHandler())
 	http.HandleFunc("/robots.txt", func(w http.ResponseWriter, req *http.Request) {
 		io.WriteString(w, `User-agent: *
+Allow: /$
 Disallow: /
 `)
 	})
