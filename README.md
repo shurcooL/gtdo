@@ -3,7 +3,7 @@ gtdo
 
 [![Build Status](https://travis-ci.org/shurcooL/gtdo.svg?branch=master)](https://travis-ci.org/shurcooL/gtdo) [![GoDoc](https://godoc.org/github.com/shurcooL/gtdo?status.svg)](https://godoc.org/github.com/shurcooL/gtdo)
 
-gtdo is the source for [gotools.org](http://gotools.org/).
+gtdo is the source for [gotools.org](https://gotools.org/).
 
 ![Screenshot](Screenshot.png)
 
