@@ -1,5 +1,5 @@
 body {
-	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-family: Go;
 	font-size: 12px;
 	line-height: 1.428571429;
 	margin: 0px;
@@ -146,7 +146,7 @@ div.outdated span.close a:hover {
 	-moz-tab-size: 4;
 }
 code {
-	font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+	font-family: "Go Mono";
 	font-size: 85%;
 }
 
@@ -187,7 +187,7 @@ pre.file {
 }
 
 .highlight pre {
-	font-family: Menlo, monospace;
+	font-family: "Go Mono";
 	font-size: 12px;
 	padding: 10px;
 	margin: 0;

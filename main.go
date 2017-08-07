@@ -30,6 +30,7 @@ import (
 	"github.com/shurcooL/frontend/checkbox"
 	"github.com/shurcooL/frontend/select_menu"
 	"github.com/shurcooL/go/printerutil"
+	"github.com/shurcooL/gofontwoff"
 	"github.com/shurcooL/gtdo/gtdo"
 	"github.com/shurcooL/gtdo/internal/sanitizedanchorname"
 	"github.com/shurcooL/gtdo/page"
@@ -109,6 +110,9 @@ Disallow: /
 	http.Handle("/assets/", fileServer)
 	http.Handle("/assets/select-list-view.css", http.StripPrefix("/assets", fileServer))
 	http.Handle("/assets/table-of-contents.css", http.StripPrefix("/assets", fileServer))
+
+	fontsHandler := httpgzip.FileServer(gofontwoff.Assets, httpgzip.FileServerOptions{ServeError: httpgzip.Detailed})
+	http.Handle("/assets/fonts/", http.StripPrefix("/assets/fonts", fontsHandler))
 
 	if *stateFileFlag != "" {
 		_ = loadState(*stateFileFlag)
