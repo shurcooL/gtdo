@@ -9,7 +9,7 @@
 	display: none;
 	z-index: 1000;
 
-	font-family: Menlo, monospace;
+	font-family: inherit;
 	font-size: 12px;
 }
 
