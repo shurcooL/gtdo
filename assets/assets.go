@@ -15,9 +15,10 @@ import (
 
 // Assets contains assets for gtdo.
 var Assets = union.New(map[string]http.FileSystem{
-	"/assets":                gopherjs_http.NewFS(http.Dir(importPathToDir("github.com/shurcooL/gtdo/_data"))),
-	"/select-list-view.css":  vfsutil.File(filepath.Join(importPathToDir("github.com/shurcooL/frontend/select-list-view"), "style.css")),
-	"/table-of-contents.css": vfsutil.File(filepath.Join(importPathToDir("github.com/shurcooL/frontend/table-of-contents"), "style.css")),
+	"/assets":               http.Dir(importPathToDir("github.com/shurcooL/gtdo/_data")),
+	"/frontend.js":          gopherjs_http.Package("github.com/shurcooL/gtdo/frontend"),
+	"/select-list-view.css": vfsutil.File(filepath.Join(importPathToDir("github.com/shurcooL/frontend/select-list-view"), "style.css")),
+	"/tableofcontents.css":  vfsutil.File(filepath.Join(importPathToDir("github.com/shurcooL/gtdo/frontend/tableofcontents"), "style.css")),
 })
 
 func importPathToDir(importPath string) string {

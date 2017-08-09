@@ -14,8 +14,8 @@ import (
 	_ "github.com/shurcooL/frontend/checkbox"
 	_ "github.com/shurcooL/frontend/select-list-view"
 	_ "github.com/shurcooL/frontend/select_menu"
-	_ "github.com/shurcooL/frontend/table-of-contents"
 	"github.com/shurcooL/go/gopherjs_http/jsutil"
+	"github.com/shurcooL/gtdo/frontend/tableofcontents"
 	"github.com/shurcooL/gtdo/gtdo"
 	"github.com/shurcooL/gtdo/page"
 	"honnef.co/go/js/dom"
@@ -219,6 +219,8 @@ func init() {
 	}
 	// Jump to desired hash after page finishes loading (and override browser's default hash jumping).
 	document.AddEventListener("DOMContentLoaded", false, func(_ dom.Event) {
+		tableofcontents.Setup()
+
 		go func() {
 			// This needs to be in a goroutine or else it "happens too early".
 			// TODO: See if there's a better event than DOMContentLoaded.
