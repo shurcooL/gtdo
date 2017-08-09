@@ -6,7 +6,7 @@
 	z-index: 1000;
 	pointer-events: none;
 
-	font-family: Menlo, monospace;
+	font-family: inherit;
 	font-size: 12px;
 }
 
