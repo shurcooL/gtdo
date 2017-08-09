@@ -4,7 +4,7 @@ package tableofcontents
 
 import (
 	"github.com/gopherjs/gopherjs/js"
-	"github.com/shurcooL/sanitized_anchor_name"
+	"github.com/shurcooL/gtdo/internal/sanitizedanchorname"
 	"honnef.co/go/js/dom"
 )
 
@@ -34,7 +34,7 @@ func Setup() {
 		element.Class().Add("toc-entry")
 		element.SetTextContent(header.TextContent())
 
-		href := "#" + sanitized_anchor_name.Create(header.TextContent())
+		href := "#" + sanitizedanchorname.Create(header.TextContent())
 		target := header.(dom.HTMLElement)
 		element.AddEventListener("click", false, func(event dom.Event) {
 			//dom.GetWindow().History().ReplaceState(nil, nil, href)
