@@ -12,9 +12,9 @@ import (
 	"github.com/gopherjs/eventsource"
 	"github.com/gopherjs/gopherjs/js"
 	_ "github.com/shurcooL/frontend/checkbox"
-	_ "github.com/shurcooL/frontend/select-list-view"
 	_ "github.com/shurcooL/frontend/select_menu"
 	"github.com/shurcooL/go/gopherjs_http/jsutil"
+	"github.com/shurcooL/gtdo/frontend/selectlistview"
 	"github.com/shurcooL/gtdo/frontend/tableofcontents"
 	"github.com/shurcooL/gtdo/gtdo"
 	"github.com/shurcooL/gtdo/page"
@@ -220,6 +220,7 @@ func init() {
 	// Jump to desired hash after page finishes loading (and override browser's default hash jumping).
 	document.AddEventListener("DOMContentLoaded", false, func(_ dom.Event) {
 		tableofcontents.Setup()
+		selectlistview.Setup()
 
 		go func() {
 			// This needs to be in a goroutine or else it "happens too early".

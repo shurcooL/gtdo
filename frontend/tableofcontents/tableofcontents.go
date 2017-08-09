@@ -1,5 +1,6 @@
 // +build js
 
+// Package tableofcontents provides a table of contents component.
 package tableofcontents
 
 import (
@@ -15,8 +16,8 @@ var (
 	results *dom.HTMLDivElement
 )
 
-// Setup sets up the table of contents on the current page.
-// It must be called exactly once when document.Body() already exists.
+// Setup sets up the table of contents component on the current page.
+// It must be called exactly once after document body has finished loading.
 func Setup() {
 	headers = document.Body().GetElementsByTagName("h2")
 	if len(headers) == 0 {

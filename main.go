@@ -110,7 +110,7 @@ Disallow: /
 	fileServer := httpgzip.FileServer(assets.Assets, httpgzip.FileServerOptions{ServeError: httpgzip.Detailed})
 	http.Handle("/assets/", fileServer)
 	http.Handle("/assets/frontend.js", http.StripPrefix("/assets", fileServer))
-	http.Handle("/assets/select-list-view.css", http.StripPrefix("/assets", fileServer))
+	http.Handle("/assets/selectlistview.css", http.StripPrefix("/assets", fileServer))
 	http.Handle("/assets/tableofcontents.css", http.StripPrefix("/assets", fileServer))
 
 	fontsHandler := httpgzip.FileServer(assets.Fonts, httpgzip.FileServerOptions{ServeError: httpgzip.Detailed})
