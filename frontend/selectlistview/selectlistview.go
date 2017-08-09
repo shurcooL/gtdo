@@ -131,14 +131,11 @@ func Setup() {
 	document.Body().AddEventListener("keydown", false, func(event dom.Event) {
 		switch ke := event.(*dom.KeyboardEvent); {
 		case ke.KeyCode == int('F') && !ke.CtrlKey && !ke.AltKey && !ke.MetaKey && !ke.ShiftKey: // F.
-			fallthrough
-		case ke.KeyCode == int('R') && !ke.CtrlKey && !ke.AltKey && !ke.MetaKey && !ke.ShiftKey: // Just R, since some browsers don't let us intercept Cmd+R.
-			// Ignore just R when command elment has focus (it means the user is typing).
+			// Ignore F when command elment has focus (it means the user is typing).
 			if ke.Target().IsEqualNode(command) {
 				break
 			}
-			fallthrough
-		case ke.KeyCode == int('R') && !ke.CtrlKey && !ke.AltKey && ke.MetaKey && !ke.ShiftKey: // Cmd+R.
+
 			ke.PreventDefault()
 
 			// Is overlay already being displayed?
