@@ -213,7 +213,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	importPath := req.URL.Path[1:]
-	rev := req.URL.Query().Get(gtdo.RevisionQueryParameter)
+	rev := req.URL.Query().Get(gtdo.RevisionQueryParameter) // rev is the raw revision query parameter as specified by URL.
 	_, includeTestFiles := req.URL.Query()[testsQueryParameter]
 
 	log.Printf("req: importPath=%q rev=%q, ref=%q, ua=%q.\n", importPath, rev, req.Referer(), req.UserAgent())
@@ -620,7 +620,7 @@ func tryLocalGopathNoVCS(importPath string) (
 
 	// Handle when a Go package is in local GOPATH workspace but not inside a VCS.
 	bpkg, _ = build.Import(importPath, "", build.FindOnly)
-	if bpkg == nil || bpkg.Dir == "" {
+	if bpkg == nil || bpkg.Dir == "" || bpkg.Goroot {
 		return nil, nil, errors.New("package is not in GOPATH")
 	}
 
