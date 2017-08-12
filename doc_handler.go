@@ -23,12 +23,7 @@ import (
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 )
 
-func summaryHandler(w http.ResponseWriter, req *http.Request) {
-	importPath := req.URL.Path[1:]
-	rev := req.URL.Query().Get(gtdo.RevisionQueryParameter)
-
-	log.Printf("req: importPath=%q rev=%q.\n", importPath, rev)
-
+func summaryHandler(w http.ResponseWriter, req *http.Request, importPath, rev string) {
 	source, bpkg, repoSpec, repoImportPath, commit, fs, branches, defaultBranch, err := try(importPath, rev)
 	log.Println("using source:", source)
 	if err != nil {
@@ -134,12 +129,7 @@ func summaryHandler(w http.ResponseWriter, req *http.Request) {
 	sendToTopMaybe(bpkg)
 }
 
-func importsHandler(w http.ResponseWriter, req *http.Request) {
-	importPath := req.URL.Path[1:]
-	rev := req.URL.Query().Get(gtdo.RevisionQueryParameter)
-
-	log.Printf("req: importPath=%q rev=%q.\n", importPath, rev)
-
+func importsHandler(w http.ResponseWriter, req *http.Request, importPath, rev string) {
 	source, bpkg, repoSpec, repoImportPath, commit, fs, branches, defaultBranch, err := try(importPath, rev)
 	log.Println("using source:", source)
 	if err != nil {

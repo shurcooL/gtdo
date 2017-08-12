@@ -202,23 +202,23 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	switch req.URL.Query().Get("tab") {
-	case "summary":
-		summaryHandler(w, req)
-		return
-	case "imports":
-		importsHandler(w, req)
-		return
-	case "dependents":
-		dependentsHandler(w, req)
-		return
-	}
-
 	importPath := req.URL.Path[1:]
 	rev := req.URL.Query().Get(gtdo.RevisionQueryParameter) // rev is the raw revision query parameter as specified by URL.
 	_, includeTestFiles := req.URL.Query()[testsQueryParameter]
 
-	log.Printf("req: importPath=%q rev=%q, ref=%q, ua=%q.\n", importPath, rev, req.Referer(), req.UserAgent())
+	log.Printf("req: importPath=%q rev=%q tab=%v, ref=%q, ua=%q\n", importPath, rev, req.URL.Query().Get("tab"), req.Referer(), req.UserAgent())
+
+	switch req.URL.Query().Get("tab") {
+	case "summary":
+		summaryHandler(w, req, importPath, rev)
+		return
+	case "imports":
+		importsHandler(w, req, importPath, rev)
+		return
+	case "dependents":
+		dependentsHandler(w, req, importPath, rev)
+		return
+	}
 
 	source, bpkg, repoSpec, repoImportPath, commit, fs, branches, defaultBranch, err := try(importPath, rev)
 	log.Println("using source:", source)
