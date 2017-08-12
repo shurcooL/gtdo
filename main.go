@@ -189,6 +189,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if req.URL.Path == "/" {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		recentlyViewed.mu.RLock()
 		recentlyViewed.Production = *productionFlag
 		err := t.ExecuteTemplate(w, "index.html.tmpl", recentlyViewed)
