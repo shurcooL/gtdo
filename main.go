@@ -25,6 +25,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/dustin/go-humanize"
 	"github.com/shurcooL/frontend/checkbox"
@@ -142,7 +143,7 @@ Disallow: /
 		}))
 	}
 
-	server := &http.Server{Addr: *httpFlag}
+	server := &http.Server{Addr: *httpFlag, Handler: topMux{}}
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
@@ -850,3 +851,49 @@ var octiconsLink = func() string {
 	}
 	return buf.String()
 }()
+
+// topMux adds some instrumentation on top of http.DefaultServeMux.
+type topMux struct{}
+
+func (topMux) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	path := req.URL.Path
+	started := time.Now()
+	rw := &responseWriter{ResponseWriter: w}
+	http.DefaultServeMux.ServeHTTP(rw, req)
+	fmt.Printf("TIMING: %s: %v\n", path, time.Since(started))
+	if path != req.URL.Path {
+		log.Printf("warning: req.URL.Path was modified from %v to %v\n", path, req.URL.Path)
+	}
+	if rw.WroteBytes && !haveType(w) {
+		log.Printf("warning: Content-Type header not set for %q\n", path)
+	}
+}
+
+// haveType reports whether w has the Content-Type header set.
+func haveType(w http.ResponseWriter) bool {
+	_, ok := w.Header()["Content-Type"]
+	return ok
+}
+
+// responseWriter wraps a real http.ResponseWriter and captures
+// whether any bytes were written.
+type responseWriter struct {
+	http.ResponseWriter
+
+	WroteBytes bool // Whether non-zero bytes have been written.
+}
+
+func (rw *responseWriter) Write(p []byte) (n int, err error) {
+	if len(p) > 0 {
+		rw.WroteBytes = true
+	}
+	return rw.ResponseWriter.Write(p)
+}
+
+func (rw *responseWriter) Flush() {
+	rw.ResponseWriter.(http.Flusher).Flush()
+}
+
+func (rw *responseWriter) CloseNotify() <-chan bool {
+	return rw.ResponseWriter.(http.CloseNotifier).CloseNotify()
+}
