@@ -46,7 +46,7 @@ import (
 	go_vcs "golang.org/x/tools/go/vcs"
 	"golang.org/x/tools/godoc/vfs"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
-	"sourcegraph.com/sourcegraph/go-vcs/vcs/gitcmd"
+	_ "sourcegraph.com/sourcegraph/go-vcs/vcs/git"
 	_ "sourcegraph.com/sourcegraph/go-vcs/vcs/hg"
 )
 
@@ -86,10 +86,6 @@ func loadTemplates() error {
 	})
 	t, err = vfstemplate.ParseGlob(assets.Assets, t, "/assets/*.tmpl")
 	return err
-}
-
-func init() {
-	gitcmd.SetModTime = false
 }
 
 func main() {
