@@ -51,11 +51,10 @@ import (
 )
 
 var (
-	httpFlag         = flag.String("http", ":8080", "Listen for HTTP connections on this address.")
-	productionFlag   = flag.Bool("production", false, "Production mode.")
-	vcsStoreDirFlag  = flag.String("vcs-store-dir", "", "Directory of vcs store (optional).")
-	remoteGorootFlag = flag.Bool("remote-goroot", false, "Whether to use remote Go repository to access GOROOT (requires vcs store).")
-	stateFileFlag    = flag.String("state-file", "", "File to save/load state.")
+	httpFlag        = flag.String("http", ":8080", "Listen for HTTP connections on this address.")
+	productionFlag  = flag.Bool("production", false, "Production mode.")
+	vcsStoreDirFlag = flag.String("vcs-store-dir", "", "Directory of vcs store (required).")
+	stateFileFlag   = flag.String("state-file", "", "File to save/load state.")
 )
 
 var t *template.Template
@@ -91,8 +90,8 @@ func loadTemplates() error {
 
 func main() {
 	flag.Parse()
-	if *remoteGorootFlag && *vcsStoreDirFlag == "" {
-		fmt.Fprintln(os.Stderr, "remote GOROOT requires vcs store")
+	if *vcsStoreDirFlag == "" {
+		fmt.Fprintln(os.Stderr, "-vcs-store-dir flag is required")
 		flag.Usage()
 		os.Exit(2)
 	}
@@ -102,18 +101,13 @@ func main() {
 		log.Fatalln("loadTemplates:", err)
 	}
 
-	if *vcsStoreDirFlag != "" {
-		vs = &localVCSStore{dir: *vcsStoreDirFlag}
-	}
+	vs = &localVCSStore{dir: *vcsStoreDirFlag}
 
-	if *remoteGorootFlag {
-		var err error
-		LocalGoVersion, err = localGoVersion()
-		if err != nil {
-			log.Fatalln("no local Go version available:", err)
-		}
-		fmt.Printf("using local Go version %q\n", LocalGoVersion)
+	LocalGoVersion, err = localGoVersion()
+	if err != nil {
+		log.Fatalln("no local Go version available:", err)
 	}
+	fmt.Printf("using local Go version %q\n", LocalGoVersion)
 
 	http.HandleFunc("/", codeHandler)
 	http.Handle("/favicon.ico", http.NotFoundHandler())
@@ -140,27 +134,24 @@ Disallow: /
 		_ = loadState(*stateFileFlag)
 	}
 
-	if vs != nil {
-		RepoUpdater = NewRepoUpdater()
-
-		sse = make(map[importPathBranch][]pageViewer)
-		http.HandleFunc("/-/events", eventsHandler)
-
-		http.Handle("/-/debug", handler(func(w io.Writer, req *http.Request) error {
-			fmt.Fprintln(w, "len(RepoUpdater.queue):", len(RepoUpdater.queue))
-			fmt.Fprintln(w)
-			fmt.Fprintln(w, "events:")
-			sseMu.Lock()
-			for importPathBranch, pageViewers := range sse {
-				fmt.Fprintf(w, "%#v - %v\n", importPathBranch, len(pageViewers))
-			}
-			if len(sse) == 0 {
-				fmt.Fprintf(w, "-")
-			}
-			sseMu.Unlock()
-			return nil
-		}))
-	}
+	RepoUpdater = NewRepoUpdater()
+	defer RepoUpdater.Close()
+	sse = make(map[importPathBranch][]pageViewer)
+	http.HandleFunc("/-/events", eventsHandler)
+	http.Handle("/-/debug", handler(func(w io.Writer, req *http.Request) error {
+		fmt.Fprintln(w, "len(RepoUpdater.queue):", len(RepoUpdater.queue))
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "events:")
+		sseMu.Lock()
+		for importPathBranch, pageViewers := range sse {
+			fmt.Fprintf(w, "%#v - %v\n", importPathBranch, len(pageViewers))
+		}
+		if len(sse) == 0 {
+			fmt.Fprintf(w, "-")
+		}
+		sseMu.Unlock()
+		return nil
+	}))
 
 	server := &http.Server{Addr: *httpFlag, Handler: topMux{}}
 
@@ -183,10 +174,6 @@ Disallow: /
 
 	if *stateFileFlag != "" {
 		_ = saveState(*stateFileFlag)
-	}
-
-	if RepoUpdater != nil {
-		_ = RepoUpdater.Close()
 	}
 }
 
@@ -504,28 +491,19 @@ func try(importPath, rev string) (
 ) {
 	var repo vcs.Repository
 	var commitId vcs.CommitID
-	if bpkg, fs, err = tryLocalGoroot(importPath); err == nil {
-		// Use local GOROOT package.
-		source = "goroot"
-		repoImportPath = strings.Split(importPath, "/")[0]
-		return source, bpkg, nil, repoImportPath, nil, fs, nil, "", nil
-	} else if repo, repoSpec, commitId, defaultBranch, err = tryRemoteGoroot(importPath, rev); err == nil {
-		// Use remote GOROOT.
+	if isLocal(importPath) {
+		repo, repoSpec, commitId, defaultBranch, err = tryRemoteGoroot(rev)
+		if err != nil {
+			return source, nil, nil, "", nil, nil, nil, "", err
+		}
 		source = "remote-goroot"
 		repoImportPath = strings.Split(importPath, "/")[0]
-	} else if repo, repoImportPath, commitId, defaultBranch, err = tryLocalGopath(importPath, rev); err == nil {
-		// Use local GOPATH package.
-		source = "gopath"
-	} else if bpkg, fs, err = tryLocalGopathNoVCS(importPath); err == nil {
-		// Use local GOPATH package (without VCS).
-		source = "gopath (no vcs)"
-		repoImportPath = importPath
-		return source, bpkg, nil, repoImportPath, nil, fs, nil, "", nil
-	} else if repo, repoSpec, repoImportPath, commitId, defaultBranch, err = tryRemote(importPath, rev); err == nil { // If local didn't work, try remote...
-		// Use remote.
-		source = "remote"
 	} else {
-		return source, nil, nil, "", nil, nil, nil, "", err
+		repo, repoSpec, repoImportPath, commitId, defaultBranch, err = tryRemote(importPath, rev)
+		if err != nil {
+			return source, nil, nil, "", nil, nil, nil, "", err
+		}
+		source = "remote"
 	}
 
 	branchNames, err = branchesAndTags(repo)
@@ -571,51 +549,20 @@ func try(importPath, rev string) (
 	return source, bpkg, repoSpec, repoImportPath, commit, fs, branchNames, defaultBranch, nil
 }
 
-func tryLocalGoroot(importPath string) (
-	bpkg *build.Package,
-	fs vfs.FileSystem,
-	err error,
-) {
-	if *remoteGorootFlag {
-		return nil, nil, errors.New("local GOROOT is disabled because remoteGorootFlag is on")
-	}
-
-	fs = vfs.OS(filepath.Join(build.Default.GOROOT, "src"))
-
-	// Verify it's an existing folder in GOROOT.
-	if fi, err := fs.Stat(importPath); err != nil || !fi.IsDir() {
-		return nil, nil, errors.New("package is not in GOROOT")
-	}
-
-	fs = NewPrefixFS(fs, "/virtual-go-workspace/src")
-
-	context := buildContextUsingFS(fs)
-	context.GOROOT = "/virtual-go-workspace"
-	bpkg, err1 := context.Import(importPath, "", 0)
-	if err1 == nil {
-		return bpkg, fs, nil
-	}
-
-	return nil, fs, nil
+// isLocal reports whether the import path is a package that can only
+// be in a local GOROOT or GOPATH, but not available remotely. It checks
+// if the first element (i.e., the domain name) contains a dot.
+func isLocal(importPath string) bool {
+	return !strings.Contains(strings.Split(importPath, "/")[0], ".")
 }
 
-func tryRemoteGoroot(importPath, rev string) (
+func tryRemoteGoroot(rev string) (
 	repo vcs.Repository,
 	_ *repoSpec,
 	commitId vcs.CommitID,
 	defaultBranch string,
 	err error,
 ) {
-	if !*remoteGorootFlag {
-		return nil, nil, "", "", errors.New("remote GOROOT is disabled because remoteGorootFlag is off")
-	}
-
-	// It can be a package in GOROOT only if first element (domain name) contains no dot.
-	if strings.Contains(strings.Split(importPath, "/")[0], ".") {
-		return nil, nil, "", "", fmt.Errorf("import path %q is not in GOROOT because its first element contains dot", importPath)
-	}
-	// TODO: Else, errors returned should not mean "try other sources". Maybe a missing tag, etc.
-
 	u, err := url.Parse("https://go.googlesource.com/go")
 	if err != nil {
 		return nil, nil, "", "", err
@@ -679,89 +626,6 @@ func (r repoWithLocal) FileSystem(at vcs.CommitID) (vfs.FileSystem, error) {
 	}
 	fmt.Println("using vcs repo", at)
 	return r.Repository.FileSystem(at)
-}
-
-func tryLocalGopath(importPath, rev string) (
-	repo vcs.Repository,
-	repoImportPath string,
-	commitId vcs.CommitID,
-	defaultBranch string,
-	err error,
-) {
-	if *productionFlag {
-		// Disable local for GOPATH packages in production.
-		return nil, "", "", "", errors.New("local for GOPATH packages is disabled in production")
-	}
-
-	repoRoot, err := importPathToRepoRootLocal(importPath)
-	if err != nil {
-		return nil, "", "", "", fmt.Errorf("no local repo for %q", importPath)
-	}
-
-	repoImportPath = repoRoot.Root
-	repo, err = vcs.Open(repoRoot.VCS.Cmd, repoRoot.Dir)
-	if err != nil {
-		return nil, "", "", "", fmt.Errorf("vcs.Open: %v", err)
-	}
-
-	// Use locally checked out branch as the default branch for repos in GOPATH.
-	defaultBranch, err = repoRoot.State.Branch(repoRoot.Dir)
-	if err != nil {
-		return nil, "", "", "", err
-	}
-
-	if rev != "" {
-		commitId, err = repo.ResolveRevision(rev)
-	} else {
-		commitId, err = repo.ResolveBranch(defaultBranch)
-	}
-	if err != nil {
-		return nil, "", "", "", err
-	}
-
-	// Verify it's an existing revision, etc.
-	{
-		fs, err := repo.FileSystem(commitId)
-		if err != nil {
-			return nil, "", "", "", err
-		}
-
-		if fi, err := fs.Stat("."); err != nil || !fi.IsDir() {
-			return nil, "", "", "", err
-		}
-	}
-
-	return repo, repoImportPath, commitId, defaultBranch, nil
-}
-
-func tryLocalGopathNoVCS(importPath string) (
-	bpkg *build.Package,
-	fs vfs.FileSystem,
-	err error,
-) {
-	if *productionFlag {
-		// Disable local for GOPATH packages in production.
-		return nil, nil, errors.New("local for GOPATH packages is disabled in production")
-	}
-
-	// Handle when a Go package is in local GOPATH workspace but not inside a VCS.
-	bpkg, _ = build.Import(importPath, "", build.FindOnly)
-	if bpkg == nil || bpkg.Dir == "" || bpkg.Goroot {
-		return nil, nil, errors.New("package is not in GOPATH")
-	}
-
-	fs = vfs.OS(bpkg.SrcRoot)
-
-	fs = NewPrefixFS(fs, "/virtual-go-workspace/src")
-
-	context := buildContextUsingFS(fs)
-	context.GOPATH = "/virtual-go-workspace"
-	bpkg, err1 := context.Import(importPath, "", 0)
-	if err1 == nil {
-		return bpkg, fs, nil
-	}
-
-	return nil, fs, nil
 }
 
 func tryRemote(importPath, rev string) (
@@ -832,59 +696,6 @@ func tryRemote(importPath, rev string) (
 
 	rs := repoSpec{vcsType: rr.VCS.Cmd, cloneURL: rr.Repo} // TODO: Avoid having to return a pointer. It's not optional in this context.
 	return repo, &rs, rr.Root, commitId, defaultBranch, nil
-}
-
-type RepoRootLocal struct {
-	VCS   *go_vcs.Cmd
-	State vcsstate.VCS
-
-	// Dir is the path of repository.
-	Dir string
-
-	// Root is the import path corresponding to the root of the
-	// repository.
-	Root string
-}
-
-// importPathToRepoRootLocal assumes no duplicate overlapping repositories.
-func importPathToRepoRootLocal(importPath string) (RepoRootLocal, error) {
-	elems := strings.Split(importPath, "/")
-	gopathEntries := filepath.SplitList(build.Default.GOPATH)
-
-	for idx := range elems {
-		for _, gopathEntry := range gopathEntries {
-			repoImportPath := path.Join(elems[:idx+1]...)
-			rootPath := filepath.Join(gopathEntry, "src", filepath.FromSlash(repoImportPath))
-			vcs := vcsInDir(rootPath)
-			if vcs == nil {
-				continue
-			}
-			state, err := vcsstate.NewVCS(vcs)
-			if err != nil {
-				continue
-			}
-
-			return RepoRootLocal{
-				VCS:   vcs,
-				State: state,
-				Dir:   rootPath,
-				Root:  repoImportPath,
-			}, nil
-		}
-	}
-
-	return RepoRootLocal{}, os.ErrNotExist
-}
-
-// vcsInDir inspects dir to determine if it contains a supported version control system.
-// It returns nil if there isn't one.
-func vcsInDir(dir string) *go_vcs.Cmd {
-	for _, vcs := range []string{"git", "hg"} {
-		if fi, err := os.Stat(filepath.Join(dir, "."+vcs)); err == nil && fi.IsDir() {
-			return go_vcs.ByCmd(vcs)
-		}
-	}
-	return nil
 }
 
 func buildContextUsingFS(fs vfs.FileSystem) build.Context {
