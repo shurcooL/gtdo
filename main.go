@@ -202,8 +202,8 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	if req.URL.Path != "/" && req.URL.Path[len(req.URL.Path)-1] == '/' {
-		http.Redirect(w, req, req.URL.Path[:len(req.URL.Path)-1], http.StatusFound)
+	if strings.HasPrefix(req.URL.Path, "/apple-touch-icon") {
+		http.NotFound(w, req)
 		return
 	}
 
@@ -218,6 +218,11 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		return
+	}
+
+	if req.URL.Path != "/" && req.URL.Path[len(req.URL.Path)-1] == '/' {
+		http.Redirect(w, req, req.URL.Path[:len(req.URL.Path)-1], http.StatusFound)
 		return
 	}
 
