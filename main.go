@@ -499,15 +499,10 @@ func try(importPath, rev string) (
 		return source, nil, nil, "", nil, nil, nil, "", err
 	}
 
-	branches, err := repo.Branches(vcs.BranchesOptions{})
+	branchNames, err = branchesAndTags(repo)
 	if err != nil {
 		return source, nil, nil, "", nil, nil, nil, "", err
 	}
-	branchNames = make([]string, len(branches))
-	for i, branch := range branches {
-		branchNames[i] = branch.Name
-	}
-	sort.Strings(branchNames)
 
 	commit, err = repo.GetCommit(commitId)
 	if err != nil {
