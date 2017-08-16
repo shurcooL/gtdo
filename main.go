@@ -106,6 +106,15 @@ func main() {
 		vs = &localVCSStore{dir: *vcsStoreDirFlag}
 	}
 
+	if *remoteGorootFlag {
+		var err error
+		LocalGoVersion, err = localGoVersion()
+		if err != nil {
+			log.Fatalln("no local Go version available:", err)
+		}
+		fmt.Printf("using local Go version %q\n", LocalGoVersion)
+	}
+
 	http.HandleFunc("/", codeHandler)
 	http.Handle("/favicon.ico", http.NotFoundHandler())
 	http.HandleFunc("/robots.txt", func(w http.ResponseWriter, req *http.Request) {
@@ -606,12 +615,15 @@ func tryRemoteGoroot(importPath, rev string) (
 		return nil, nil, "", "", err
 	}
 
-	// TODO: Use local Go version as default.
-	defaultBranch = "go1.8.3"
+	// Use local Go version as default.
+	defaultBranch = LocalGoVersion
 
+	var local bool
 	if rev != "" {
+		local = rev == LocalGoVersion
 		commitId, err = repo.ResolveRevision(rev)
 	} else {
+		local = true
 		commitId, err = repo.ResolveTag(defaultBranch)
 	}
 	if err != nil {
@@ -634,8 +646,29 @@ func tryRemoteGoroot(importPath, rev string) (
 		fmt.Println("tryRemote: worked on first try")
 	}
 
+	if local {
+		repo = repoWithLocal{
+			Repository:     repo,
+			localGoVersion: commitId,
+		}
+	}
+
 	rs := repoSpec{vcsType: "git", cloneURL: "https://go.googlesource.com/go"} // TODO: Avoid having to return a pointer. It's not optional in this context.
 	return repo, &rs, commitId, defaultBranch, nil
+}
+
+type repoWithLocal struct {
+	vcs.Repository
+	localGoVersion vcs.CommitID
+}
+
+func (r repoWithLocal) FileSystem(at vcs.CommitID) (vfs.FileSystem, error) {
+	if at == r.localGoVersion {
+		fmt.Println("using LocalGoVersion:", at)
+		return vfs.OS(build.Default.GOROOT), nil
+	}
+	fmt.Println("using vcs repo", at)
+	return r.Repository.FileSystem(at)
 }
 
 func tryLocalGopath(importPath, rev string) (
