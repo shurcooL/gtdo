@@ -221,8 +221,13 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Redirect "/import/path/" to "/import/path".
 	if req.URL.Path != "/" && req.URL.Path[len(req.URL.Path)-1] == '/' {
-		http.Redirect(w, req, req.URL.Path[:len(req.URL.Path)-1], http.StatusFound)
+		baseURL := req.URL.Path[:len(req.URL.Path)-1]
+		if req.URL.RawQuery != "" {
+			baseURL += "?" + req.URL.RawQuery
+		}
+		http.Redirect(w, req, baseURL, http.StatusFound)
 		return
 	}
 
