@@ -88,6 +88,9 @@ Disallow: /
 
 User-agent: MJ12bot
 Disallow: /
+
+User-agent: Baiduspider
+Disallow: /
 `)
 	})
 	fileServer := httpgzip.FileServer(assets.Assets, httpgzip.FileServerOptions{ServeError: httpgzip.Detailed})
