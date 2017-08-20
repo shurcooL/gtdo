@@ -829,7 +829,3 @@ func (rw *responseWriter) Write(p []byte) (n int, err error) {
 func (rw *responseWriter) Flush() {
 	rw.ResponseWriter.(http.Flusher).Flush()
 }
-
-func (rw *responseWriter) CloseNotify() <-chan bool {
-	return rw.ResponseWriter.(http.CloseNotifier).CloseNotify()
-}

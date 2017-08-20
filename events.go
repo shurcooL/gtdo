@@ -66,14 +66,6 @@ func eventsHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	closeNotifier, ok := w.(http.CloseNotifier)
-	if !ok {
-		log.Println("CloseNotifier unsupported.")
-		http.Error(w, "CloseNotifier unsupported.", http.StatusInternalServerError)
-		return
-	}
-	closeChan := closeNotifier.CloseNotify()
-
 	outdatedChan := make(chan struct{}, 1)
 	{
 		log.Println("Client connection joined:", &w)
@@ -120,8 +112,8 @@ func eventsHandler(w http.ResponseWriter, req *http.Request) {
 			}
 
 			flusher.Flush()
-		case <-closeChan:
-			log.Println("(via CloseNotifier)")
+		case <-req.Context().Done():
+			log.Println("(via Context.Done)")
 			return
 		}
 	}
