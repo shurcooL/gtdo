@@ -194,7 +194,7 @@ func HideOutdatedBox() {
 	document.GetElementByID("outdated-box").(dom.HTMLElement).Style().SetProperty("display", "none", "")
 }
 
-func init() {
+func main() {
 	js.Global.Set("MustScrollTo", jsutil.Wrap(MustScrollTo))
 	js.Global.Set("LineNumber", jsutil.Wrap(LineNumber))
 	js.Global.Set("HideOutdatedBox", HideOutdatedBox)
@@ -268,8 +268,10 @@ func init() {
 
 		// Escape.
 		case ke.KeyCode == 27 && !ke.Repeat && !ke.CtrlKey && !ke.AltKey && !ke.MetaKey && !ke.ShiftKey:
-			// TODO: dom.GetWindow().History().ReplaceState(...)
-			js.Global.Get("window").Get("history").Call("replaceState", nil, nil, "#")
+			url := windowLocation
+			url.Fragment = ""
+			// TODO: dom.GetWindow().History().ReplaceState(...), blocked on https://github.com/dominikh/go-js-dom/issues/41.
+			js.Global.Get("window").Get("history").Call("replaceState", nil, nil, url.String())
 
 			processHashSet()
 
@@ -305,4 +307,11 @@ func init() {
 	}
 }
 
-func main() {}
+var windowLocation = func() url.URL {
+	url, err := url.Parse(dom.GetWindow().Location().Href)
+	if err != nil {
+		// We don't expect this can ever happen, so treat it as an internal error if it does.
+		panic(fmt.Errorf("internal error: parsing window.location.href as URL failed: %v", err))
+	}
+	return *url
+}()

@@ -4,7 +4,9 @@
 package selectlistview
 
 import (
+	"fmt"
 	"html"
+	"net/url"
 	"strings"
 
 	"github.com/gopherjs/gopherjs/js"
@@ -94,7 +96,7 @@ func Setup() {
 			ke.PreventDefault()
 
 			if ke.Target().IsEqualNode(command) {
-				js.Global.Get("window").Get("history").Call("replaceState", nil, nil, "#"+baseHash)
+				setFragment(baseHash)
 				dom.GetWindow().ScrollTo(baseX, baseY)
 			}
 
@@ -224,9 +226,7 @@ func updateResultSelection() {
 		}
 
 		element.Class().Add("gts-highlighted")
-		//dom.GetWindow().Location().Hash = "#" + element.GetAttribute("data-id")
-		//dom.GetWindow().History().ReplaceState(nil, nil, "#"+element.GetAttribute("data-id"))
-		js.Global.Get("window").Get("history").Call("replaceState", nil, nil, "#"+element.GetAttribute("data-id"))
+		setFragment(element.GetAttribute("data-id"))
 		target := document.GetElementByID(element.GetAttribute("data-id")).(dom.HTMLElement)
 		target.Class().Add("highlighted")
 		previouslyHighlightedHeader = target
@@ -354,12 +354,27 @@ func updateResults(init bool, overlay dom.HTMLElement) {
 		}
 
 		element.Class().Add("gts-highlighted")
-		//dom.GetWindow().Location().Hash = "#" + element.GetAttribute("data-id")
-		//dom.GetWindow().History().ReplaceState(nil, nil, "#"+element.GetAttribute("data-id"))
-		js.Global.Get("window").Get("history").Call("replaceState", nil, nil, "#"+element.GetAttribute("data-id"))
+		setFragment(element.GetAttribute("data-id"))
 		target := document.GetElementByID(element.GetAttribute("data-id")).(dom.HTMLElement)
 		target.Class().Add("highlighted")
 		previouslyHighlightedHeader = target
 		centerOnTargetIfOffscreen(target)
 	}
 }
+
+// setFragment sets current page URL fragment to hash. The leading '#' shouldn't be included.
+func setFragment(hash string) {
+	url := windowLocation
+	url.Fragment = hash
+	// TODO: dom.GetWindow().History().ReplaceState(...), blocked on https://github.com/dominikh/go-js-dom/issues/41.
+	js.Global.Get("window").Get("history").Call("replaceState", nil, nil, url.String())
+}
+
+var windowLocation = func() url.URL {
+	url, err := url.Parse(dom.GetWindow().Location().Href)
+	if err != nil {
+		// We don't expect this can ever happen, so treat it as an internal error if it does.
+		panic(fmt.Errorf("internal error: parsing window.location.href as URL failed: %v", err))
+	}
+	return *url
+}()
