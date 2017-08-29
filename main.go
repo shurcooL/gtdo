@@ -57,37 +57,6 @@ var (
 	stateFileFlag   = flag.String("state-file", "", "File to save/load state.")
 )
 
-var t *template.Template
-
-func loadTemplates() error {
-	var err error
-	t = template.New("").Funcs(template.FuncMap{
-		"commitId":      func(commitId vcs.CommitID) vcs.CommitID { return commitId[:8] },
-		"time":          humanize.Time,
-		"fullQuery":     fullQuery,
-		"importPathURL": importPathURL,
-		"octicon": func(name string) (template.HTML, error) {
-			icon := octiconssvg.Icon(name)
-			if icon == nil {
-				return "", fmt.Errorf("%q is not a valid Octicon symbol name", name)
-			}
-			var buf bytes.Buffer
-			err := html.Render(&buf, icon)
-			if err != nil {
-				return "", err
-			}
-			return template.HTML(buf.String()), nil
-		},
-
-		"json": func(in interface{}) (string, error) {
-			out, err := json.Marshal(in)
-			return string(out), err
-		},
-	})
-	t, err = vfstemplate.ParseGlob(assets.Assets, t, "/assets/*.tmpl")
-	return err
-}
-
 func main() {
 	flag.Parse()
 	if *vcsStoreDirFlag == "" {
@@ -175,6 +144,37 @@ Disallow: /
 	if *stateFileFlag != "" {
 		_ = saveState(*stateFileFlag)
 	}
+}
+
+var t *template.Template
+
+func loadTemplates() error {
+	var err error
+	t = template.New("").Funcs(template.FuncMap{
+		"commitId":      func(commitId vcs.CommitID) vcs.CommitID { return commitId[:8] },
+		"time":          humanize.Time,
+		"fullQuery":     fullQuery,
+		"importPathURL": importPathURL,
+		"octicon": func(name string) (template.HTML, error) {
+			icon := octiconssvg.Icon(name)
+			if icon == nil {
+				return "", fmt.Errorf("%q is not a valid Octicon symbol name", name)
+			}
+			var buf bytes.Buffer
+			err := html.Render(&buf, icon)
+			if err != nil {
+				return "", err
+			}
+			return template.HTML(buf.String()), nil
+		},
+
+		"json": func(in interface{}) (string, error) {
+			out, err := json.Marshal(in)
+			return string(out), err
+		},
+	})
+	t, err = vfstemplate.ParseGlob(assets.Assets, t, "/assets/*.tmpl")
+	return err
 }
 
 func codeHandler(w http.ResponseWriter, req *http.Request) {
