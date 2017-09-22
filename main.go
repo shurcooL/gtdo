@@ -82,14 +82,14 @@ func main() {
 	http.Handle("/favicon.ico", http.NotFoundHandler())
 	http.HandleFunc("/robots.txt", func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
-		io.WriteString(w, `User-agent: *
+		io.WriteString(w, `User-agent: Baiduspider
+Disallow: /
+
+User-agent: *
 Allow: /$
 Disallow: /
 
 User-agent: MJ12bot
-Disallow: /
-
-User-agent: Baiduspider
 Disallow: /
 `)
 	})
