@@ -47,6 +47,112 @@ func (s selection) Hash() string {
 	return hash
 }
 
+func main() {
+	js.Global.Set("MustScrollTo", jsutil.Wrap(MustScrollTo))
+	js.Global.Set("LineNumber", jsutil.Wrap(LineNumber))
+	js.Global.Set("HideOutdatedBox", HideOutdatedBox)
+
+	switch readyState := document.ReadyState(); readyState {
+	case "loading":
+		document.AddEventListener("DOMContentLoaded", false, func(dom.Event) {
+			go setup()
+		})
+	case "interactive", "complete":
+		setup()
+	default:
+		panic(fmt.Errorf("internal error: unexpected document.ReadyState value: %v", readyState))
+	}
+
+	var state page.State
+	err := json.Unmarshal([]byte(js.Global.Get("StateJSON").String()), &state)
+	if err != nil {
+		panic(err)
+	}
+
+	// EventSource updates.
+	if state.RepoSpec.CloneURL != "" {
+		u := url.URL{
+			Path: "/-/events",
+			RawQuery: url.Values{
+				"ImportPath":        {state.ImportPath},
+				"Branch":            {state.ProcessedRev},
+				"RepoSpec.VCSType":  {state.RepoSpec.VCSType},
+				"RepoSpec.CloneURL": {state.RepoSpec.CloneURL},
+			}.Encode(),
+		}
+
+		source := eventsource.New(u.String())
+		source.AddEventListener("message", false, func(event *js.Object) {
+			data := event.Get("data").String()
+			if data == "outdated" {
+				showOutdatedBox()
+			}
+		})
+	}
+}
+
+func setup() {
+	tableofcontents.Setup()
+	selectlistview.Setup()
+
+	// Jump to desired hash after page finishes loading (and override browser's default hash jumping).
+	go func() {
+		// This needs to be in a goroutine or else it "happens too early".
+		// TODO: See if there's a better event than DOMContentLoaded.
+		processHashSet()
+	}()
+	// Start watching for hashchange events.
+	dom.GetWindow().AddEventListener("hashchange", false, func(event dom.Event) {
+		event.PreventDefault()
+
+		processHashSet()
+	})
+
+	document.Body().AddEventListener("keydown", false, func(event dom.Event) {
+		if event.DefaultPrevented() {
+			return
+		}
+		// Ignore when some element other than body has focus (it means the user is typing elsewhere).
+		if !event.Target().IsEqualNode(document.Body()) {
+			return
+		}
+
+		switch ke := event.(*dom.KeyboardEvent); {
+		// 'y' keyboard shortcut to get permalink.
+		case ke.KeyCode == 'Y' && !ke.Repeat && !ke.CtrlKey && !ke.AltKey && !ke.MetaKey && !ke.ShiftKey:
+			commitIdEl := document.GetElementByID("commit-id")
+			if commitIdEl == nil {
+				return
+			}
+			commitId := commitIdEl.GetAttribute("title")
+			if commitId == "" {
+				return
+			}
+
+			// Set revision query parameter to full commit id, if it's not already.
+			query, _ := url.ParseQuery(strings.TrimPrefix(dom.GetWindow().Location().Search, "?"))
+			if query.Get(gtdo.RevisionQueryParameter) != commitId {
+				query.Set(gtdo.RevisionQueryParameter, commitId)
+				// TODO: dom.GetWindow().History().PushState(...)
+				js.Global.Get("window").Get("history").Call("pushState", nil, nil, "?"+query.Encode()+dom.GetWindow().Location().Hash)
+			}
+
+			ke.PreventDefault()
+
+		// Escape.
+		case ke.KeyCode == 27 && !ke.Repeat && !ke.CtrlKey && !ke.AltKey && !ke.MetaKey && !ke.ShiftKey:
+			url := windowLocation
+			url.Fragment = ""
+			// TODO: dom.GetWindow().History().ReplaceState(...), blocked on https://github.com/dominikh/go-js-dom/issues/41.
+			js.Global.Get("window").Get("history").Call("replaceState", nil, nil, url.String())
+
+			processHashSet()
+
+			ke.PreventDefault()
+		}
+	})
+}
+
 // targetId must point to a valid target.
 func MustScrollTo(event dom.Event, targetId string) {
 	target := document.GetElementByID(targetId).(dom.HTMLElement)
@@ -88,6 +194,33 @@ func LineNumber(event dom.Event, targetId string) {
 	js.Global.Get("window").Get("history").Call("replaceState", nil, nil, "#"+targetId)
 
 	processHash(targetId, true)
+}
+
+func showOutdatedBox() {
+	document.GetElementByID("outdated-box").(dom.HTMLElement).Style().SetProperty("display", "block", "")
+}
+
+func HideOutdatedBox() {
+	document.GetElementByID("outdated-box").(dom.HTMLElement).Style().SetProperty("display", "none", "")
+}
+
+func processHashSet() {
+	// Scroll to hash target.
+	hash := strings.TrimPrefix(dom.GetWindow().Location().Hash, "#")
+	parts := strings.Split(hash, "-")
+	var targetId string
+	if file, start, _, ok := tryParseFileLineRange(parts); ok {
+		targetId = fmt.Sprintf("%s-L%d", file, start)
+	} else {
+		targetId = hash
+	}
+	target, ok := document.GetElementByID(targetId).(dom.HTMLElement)
+	if ok {
+		windowHalfHeight := dom.GetWindow().InnerHeight() * 2 / 5
+		dom.GetWindow().ScrollTo(dom.GetWindow().ScrollX(), int(offsetTopRoot(target)+target.OffsetHeight())-windowHalfHeight)
+	}
+
+	processHash(hash, ok)
 }
 
 // valid is true iff the hash points to a valid target.
@@ -184,127 +317,6 @@ func offsetTopRoot(e dom.HTMLElement) float64 {
 		offsetTopRoot += e.OffsetTop()
 	}
 	return offsetTopRoot
-}
-
-func showOutdatedBox() {
-	document.GetElementByID("outdated-box").(dom.HTMLElement).Style().SetProperty("display", "block", "")
-}
-
-func HideOutdatedBox() {
-	document.GetElementByID("outdated-box").(dom.HTMLElement).Style().SetProperty("display", "none", "")
-}
-
-func main() {
-	js.Global.Set("MustScrollTo", jsutil.Wrap(MustScrollTo))
-	js.Global.Set("LineNumber", jsutil.Wrap(LineNumber))
-	js.Global.Set("HideOutdatedBox", HideOutdatedBox)
-
-	processHashSet := func() {
-		// Scroll to hash target.
-		hash := strings.TrimPrefix(dom.GetWindow().Location().Hash, "#")
-		parts := strings.Split(hash, "-")
-		var targetId string
-		if file, start, _, ok := tryParseFileLineRange(parts); ok {
-			targetId = fmt.Sprintf("%s-L%d", file, start)
-		} else {
-			targetId = hash
-		}
-		target, ok := document.GetElementByID(targetId).(dom.HTMLElement)
-		if ok {
-			windowHalfHeight := dom.GetWindow().InnerHeight() * 2 / 5
-			dom.GetWindow().ScrollTo(dom.GetWindow().ScrollX(), int(offsetTopRoot(target)+target.OffsetHeight())-windowHalfHeight)
-		}
-
-		processHash(hash, ok)
-	}
-	// Jump to desired hash after page finishes loading (and override browser's default hash jumping).
-	document.AddEventListener("DOMContentLoaded", false, func(_ dom.Event) {
-		tableofcontents.Setup()
-		selectlistview.Setup()
-
-		go func() {
-			// This needs to be in a goroutine or else it "happens too early".
-			// TODO: See if there's a better event than DOMContentLoaded.
-			processHashSet()
-		}()
-	})
-	// Start watching for hashchange events.
-	dom.GetWindow().AddEventListener("hashchange", false, func(event dom.Event) {
-		event.PreventDefault()
-
-		processHashSet()
-	})
-
-	document.AddEventListener("keydown", false, func(event dom.Event) {
-		if event.DefaultPrevented() {
-			return
-		}
-		// Ignore when some element other than body has focus (it means the user is typing elsewhere).
-		if !event.Target().IsEqualNode(document.Body()) {
-			return
-		}
-
-		switch ke := event.(*dom.KeyboardEvent); {
-		// 'y' keyboard shortcut to get permalink.
-		case ke.KeyCode == 'Y' && !ke.Repeat && !ke.CtrlKey && !ke.AltKey && !ke.MetaKey && !ke.ShiftKey: // 'y' keyboard shortcut to get permalink.
-			commitIdEl := document.GetElementByID("commit-id")
-			if commitIdEl == nil {
-				return
-			}
-			commitId := commitIdEl.GetAttribute("title")
-			if commitId == "" {
-				return
-			}
-
-			// Set revision query parameter to full commit id, if it's not already.
-			query, _ := url.ParseQuery(strings.TrimPrefix(dom.GetWindow().Location().Search, "?"))
-			if query.Get(gtdo.RevisionQueryParameter) != commitId {
-				query.Set(gtdo.RevisionQueryParameter, commitId)
-				// TODO: dom.GetWindow().History().PushState(...)
-				js.Global.Get("window").Get("history").Call("pushState", nil, nil, "?"+query.Encode()+dom.GetWindow().Location().Hash)
-			}
-
-			ke.PreventDefault()
-
-		// Escape.
-		case ke.KeyCode == 27 && !ke.Repeat && !ke.CtrlKey && !ke.AltKey && !ke.MetaKey && !ke.ShiftKey:
-			url := windowLocation
-			url.Fragment = ""
-			// TODO: dom.GetWindow().History().ReplaceState(...), blocked on https://github.com/dominikh/go-js-dom/issues/41.
-			js.Global.Get("window").Get("history").Call("replaceState", nil, nil, url.String())
-
-			processHashSet()
-
-			ke.PreventDefault()
-		}
-	})
-
-	var state page.State
-	err := json.Unmarshal([]byte(js.Global.Get("StateJSON").String()), &state)
-	if err != nil {
-		panic(err)
-	}
-
-	// EventSource updates.
-	if state.RepoSpec.CloneURL != "" {
-		u := url.URL{
-			Path: "/-/events",
-			RawQuery: url.Values{
-				"ImportPath":        {state.ImportPath},
-				"Branch":            {state.ProcessedRev},
-				"RepoSpec.VCSType":  {state.RepoSpec.VCSType},
-				"RepoSpec.CloneURL": {state.RepoSpec.CloneURL},
-			}.Encode(),
-		}
-
-		source := eventsource.New(u.String())
-		source.AddEventListener("message", false, func(event *js.Object) {
-			data := event.Get("data").String()
-			if data == "outdated" {
-				showOutdatedBox()
-			}
-		})
-	}
 }
 
 var windowLocation = func() url.URL {
