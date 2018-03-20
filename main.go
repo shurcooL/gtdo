@@ -4,6 +4,7 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -65,16 +66,31 @@ func main() {
 		os.Exit(2)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		sigint := make(chan os.Signal, 1)
+		signal.Notify(sigint, os.Interrupt)
+		<-sigint
+		cancel()
+	}()
+
+	err := run(ctx)
+	if err != nil {
+		log.Fatalln(err)
+	}
+}
+
+func run(ctx context.Context) error {
 	err := loadTemplates()
 	if err != nil {
-		log.Fatalln("loadTemplates:", err)
+		return fmt.Errorf("loadTemplates: %v", err)
 	}
 
 	vs = &localVCSStore{dir: *vcsStoreDirFlag}
 
 	LocalGoVersion, err = localGoVersion()
 	if err != nil {
-		log.Fatalln("no local Go version available:", err)
+		return fmt.Errorf("no local Go version available: %v", err)
 	}
 	fmt.Printf("using local Go version %q\n", LocalGoVersion)
 
@@ -120,26 +136,28 @@ Disallow: /
 
 	server := &http.Server{Addr: *httpFlag, Handler: topMux{}}
 
-	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, os.Interrupt)
 	go func() {
-		<-interrupt
+		<-ctx.Done()
 		err := server.Close()
 		if err != nil {
 			log.Println("server.Close:", err)
 		}
 	}()
 
-	log.Println("Started.")
+	log.Println("Starting HTTP server.")
 
 	err = server.ListenAndServe()
-	if err != nil {
+	if err != http.ErrServerClosed {
 		log.Println("server.ListenAndServe:", err)
 	}
+
+	log.Println("Ended HTTP server.")
 
 	if *stateFileFlag != "" {
 		_ = saveState(*stateFileFlag)
 	}
+
+	return nil
 }
 
 var t *template.Template
