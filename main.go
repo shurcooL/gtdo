@@ -192,7 +192,16 @@ func loadTemplates() error {
 }
 
 func codeHandler(w http.ResponseWriter, req *http.Request) {
-	const testsQueryParameter = "tests"
+	if strings.HasPrefix(req.URL.Path, "/apple-touch-icon") {
+		http.NotFound(w, req)
+		return
+	}
+
+	if req.UserAgent() == "Mozilla/5.0 (compatible; Baiduspider/2.0; +http://www.baidu.com/search/spider.html)" {
+		log.Printf("blocked request to %q from Baiduspider\n", req.URL.String())
+		http.Error(w, "403 Forbidden\n\nsee robots.txt", http.StatusForbidden)
+		return
+	}
 
 	if !*productionFlag {
 		err := loadTemplates()
@@ -201,11 +210,6 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 			http.Error(w, fmt.Sprintln("loadTemplates:", err), http.StatusInternalServerError)
 			return
 		}
-	}
-
-	if strings.HasPrefix(req.URL.Path, "/apple-touch-icon") {
-		http.NotFound(w, req)
-		return
 	}
 
 	if req.URL.Path == "/" {
@@ -234,6 +238,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 
 	importPath := req.URL.Path[1:]
 	rev := req.URL.Query().Get(gtdo.RevisionQueryParameter) // rev is the raw revision query parameter as specified by URL.
+	const testsQueryParameter = "tests"
 	_, includeTestFiles := req.URL.Query()[testsQueryParameter]
 
 	log.Printf("req: importPath=%q rev=%q tab=%v, ref=%q, ua=%q\n", importPath, rev, req.URL.Query().Get("tab"), req.Referer(), req.UserAgent())
