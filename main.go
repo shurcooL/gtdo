@@ -197,8 +197,13 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if req.UserAgent() == "Mozilla/5.0 (compatible; Baiduspider/2.0; +http://www.baidu.com/search/spider.html)" {
+	switch req.UserAgent() {
+	case "Mozilla/5.0 (compatible; Baiduspider/2.0; +http://www.baidu.com/search/spider.html)":
 		log.Printf("blocked request to %q from Baiduspider\n", req.URL.String())
+		http.Error(w, "403 Forbidden\n\nsee robots.txt", http.StatusForbidden)
+		return
+	case "Mozilla/5.0 (compatible; AlphaBot/3.2; +http://alphaseobot.com/bot.html)":
+		log.Printf("blocked request to %q from AlphaBot\n", req.URL.String())
 		http.Error(w, "403 Forbidden\n\nsee robots.txt", http.StatusForbidden)
 		return
 	}
