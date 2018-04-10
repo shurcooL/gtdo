@@ -82,6 +82,8 @@ func (p *prefixFileSystem) ReadDir(name string) ([]os.FileInfo, error) {
 	}}, nil
 }
 
+func (*prefixFileSystem) RootType(string) vfs.RootType { return "" }
+
 func (p *prefixFileSystem) String() string {
 	return "prefixFileSystem{" + p.real.String() + "}"
 }
