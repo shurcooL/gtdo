@@ -43,7 +43,7 @@ import (
 	"github.com/shurcooL/vcsstate"
 	"github.com/sourcegraph/annotate"
 	"golang.org/x/net/html"
-	"golang.org/x/net/lex/httplex"
+	"golang.org/x/net/http/httpguts"
 	go_vcs "golang.org/x/tools/go/vcs"
 	"golang.org/x/tools/godoc/vfs"
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
@@ -468,7 +468,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	var wr io.Writer = w
-	if httplex.HeaderValuesContainsToken(req.Header["Accept-Encoding"], "gzip") {
+	if httpguts.HeaderValuesContainsToken(req.Header["Accept-Encoding"], "gzip") {
 		// Use gzip compression.
 		w.Header().Set("Content-Encoding", "gzip")
 		gw := gzip.NewWriter(w)
