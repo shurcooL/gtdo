@@ -91,7 +91,8 @@ func (ru *repoUpdater) worker() {
 			log.Println(err)
 			continue
 		}
-		repo, _, err := vs.Repository(rs.vcsType, u)
+		u.User = url.UserPassword(*httpUserFlag, *httpPasswordFlag)
+		repo, _, err := vs.Repository(rs.vcsType, u, *httpPasswordFlag)
 		if err != nil {
 			log.Println(err)
 			continue
