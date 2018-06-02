@@ -5,7 +5,7 @@ import (
 	"net/url"
 
 	"github.com/shurcooL/htmlg"
-	"github.com/shurcooL/octiconssvg"
+	"github.com/shurcooL/octicon"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 )
@@ -26,7 +26,7 @@ func Tabs(path string, rawQuery string) template.HTML {
 		beta bool
 	}{
 		{id: "summary", name: "Summary"},
-		{id: "", name: "Code", icon: octiconssvg.Code},
+		{id: "", name: "Code", icon: octicon.Code},
 		{id: "imports", name: "Imports"},
 		{id: "dependents", name: "Dependents"},
 	} {
