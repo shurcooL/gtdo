@@ -52,10 +52,12 @@ import (
 )
 
 var (
-	httpFlag        = flag.String("http", ":8080", "Listen for HTTP connections on this address.")
-	productionFlag  = flag.Bool("production", false, "Production mode.")
-	vcsStoreDirFlag = flag.String("vcs-store-dir", "", "Directory of vcs store (required).")
-	stateFileFlag   = flag.String("state-file", "", "File to save/load state.")
+	httpFlag         = flag.String("http", ":8080", "Listen for HTTP connections on this address.")
+	productionFlag   = flag.Bool("production", false, "Production mode.")
+	vcsStoreDirFlag  = flag.String("vcs-store-dir", "", "Directory of vcs store (required).")
+	stateFileFlag    = flag.String("state-file", "", "File to save/load state.")
+	httpUserFlag     = flag.String("clone-user", "", "HTTP User to use for authentication")
+	httpPasswordFlag = flag.String("clone-password", "", "HTTP Password to use for authentication")
 )
 
 func main() {
@@ -591,7 +593,8 @@ func tryRemoteGoroot(rev string) (
 	if err != nil {
 		return nil, nil, "", "", err
 	}
-	repo, _, err = vs.Repository("git", u)
+	u.User = url.UserPassword(*httpUserFlag, *httpPasswordFlag)
+	repo, _, err = vs.Repository("git", u, *httpPasswordFlag)
 	if err != nil {
 		return nil, nil, "", "", err
 	}
@@ -682,7 +685,8 @@ func tryRemote(importPath, rev string) (
 		return nil, nil, "", "", "", err
 	}
 	var repoDir string
-	repo, repoDir, err = vs.Repository(rr.VCS.Cmd, u)
+	u.User = url.UserPassword(*httpUserFlag, *httpPasswordFlag)
+	repo, repoDir, err = vs.Repository(rr.VCS.Cmd, u, *httpPasswordFlag)
 	if err != nil {
 		return nil, nil, "", "", "", err
 	}
