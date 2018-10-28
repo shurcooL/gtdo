@@ -24,7 +24,7 @@ func init() {
 	}
 }
 
-func dependentsHandler(w http.ResponseWriter, req *http.Request, importPath, rev string) {
+func (h *handler) dependentsHandler(w http.ResponseWriter, req *http.Request, importPath, rev string) {
 	source, bpkg, repoSpec, repoImportPath, commit, fs, branches, defaultBranch, err := try(importPath, rev)
 	log.Println("using source:", source)
 	if err != nil {
@@ -34,7 +34,6 @@ func dependentsHandler(w http.ResponseWriter, req *http.Request, importPath, rev
 	}
 
 	frontendState := page.State{
-		Production:   *productionFlag,
 		ImportPath:   importPath,
 		ProcessedRev: rev,
 	}
@@ -50,8 +49,8 @@ func dependentsHandler(w http.ResponseWriter, req *http.Request, importPath, rev
 	}
 
 	data := struct {
-		FrontendState      page.State // TODO: Maybe move Production, RawQuery, etc., here?
-		Production         bool
+		FrontendState      page.State // TODO: Maybe move RawQuery, etc., here?
+		AnalyticsHTML      template.HTML
 		RawQuery           string
 		Tabs               template.HTML
 		ImportPath         string
@@ -63,7 +62,7 @@ func dependentsHandler(w http.ResponseWriter, req *http.Request, importPath, rev
 		Folders            []string
 	}{
 		FrontendState:      frontendState,
-		Production:         *productionFlag,
+		AnalyticsHTML:      h.analyticsHTML,
 		RawQuery:           req.URL.RawQuery,
 		Tabs:               page.Tabs(req.URL.Path, req.URL.RawQuery),
 		ImportPath:         importPath,

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/gob"
+	"html/template"
 	"os"
 	"sync"
 )
@@ -10,7 +11,7 @@ var recentlyViewed = struct {
 	mu       *sync.RWMutex
 	Packages [10]string // Index 0 is the top (most recently viewed Go package).
 
-	Production bool // Used in "index.html.tmpl" template.
+	AnalyticsHTML template.HTML // Used in "index.html.tmpl" template.
 }{mu: new(sync.RWMutex)}
 
 // sendToTop sends importPath to top of recentlyViewed.Packages if it's not already present.

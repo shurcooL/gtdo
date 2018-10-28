@@ -8,11 +8,11 @@ import (
 	"os"
 )
 
-// handler is a GET-only handler for serving text/plain content.
+// textHandler is a GET-only handler for serving text/plain content.
 // It verifies that req.Method is GET, and rejects the request otherwise.
-type handler func(w io.Writer, req *http.Request) error
+type textHandler func(w io.Writer, req *http.Request) error
 
-func (h handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (h textHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if req.Method != "GET" {
 		w.Header().Set("Allow", "GET")
 		http.Error(w, "405 Method Not Allowed\n\nmethod should be GET", http.StatusMethodNotAllowed)

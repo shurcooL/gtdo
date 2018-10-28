@@ -23,7 +23,7 @@ import (
 	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 )
 
-func summaryHandler(w http.ResponseWriter, req *http.Request, importPath, rev string) {
+func (h *handler) summaryHandler(w http.ResponseWriter, req *http.Request, importPath, rev string) {
 	source, bpkg, repoSpec, repoImportPath, commit, fs, branches, defaultBranch, err := try(importPath, rev)
 	log.Println("using source:", source)
 	if err != nil {
@@ -33,7 +33,6 @@ func summaryHandler(w http.ResponseWriter, req *http.Request, importPath, rev st
 	}
 
 	frontendState := page.State{
-		Production:   *productionFlag,
 		ImportPath:   importPath,
 		ProcessedRev: rev,
 	}
@@ -49,8 +48,8 @@ func summaryHandler(w http.ResponseWriter, req *http.Request, importPath, rev st
 	}
 
 	data := struct {
-		FrontendState      page.State // TODO: Maybe move Production, RawQuery, etc., here?
-		Production         bool
+		FrontendState      page.State // TODO: Maybe move RawQuery, etc., here?
+		AnalyticsHTML      template.HTML
 		RawQuery           string
 		Tabs               template.HTML
 		ImportPath         string
@@ -65,7 +64,7 @@ func summaryHandler(w http.ResponseWriter, req *http.Request, importPath, rev st
 		Branches           template.HTML // Select menu for branches.
 	}{
 		FrontendState:      frontendState,
-		Production:         *productionFlag,
+		AnalyticsHTML:      h.analyticsHTML,
 		RawQuery:           req.URL.RawQuery,
 		Tabs:               page.Tabs(req.URL.Path, req.URL.RawQuery),
 		ImportPath:         importPath,
@@ -129,7 +128,7 @@ func summaryHandler(w http.ResponseWriter, req *http.Request, importPath, rev st
 	sendToTopMaybe(bpkg)
 }
 
-func importsHandler(w http.ResponseWriter, req *http.Request, importPath, rev string) {
+func (h *handler) importsHandler(w http.ResponseWriter, req *http.Request, importPath, rev string) {
 	source, bpkg, repoSpec, repoImportPath, commit, fs, branches, defaultBranch, err := try(importPath, rev)
 	log.Println("using source:", source)
 	if err != nil {
@@ -139,7 +138,6 @@ func importsHandler(w http.ResponseWriter, req *http.Request, importPath, rev st
 	}
 
 	frontendState := page.State{
-		Production:   *productionFlag,
 		ImportPath:   importPath,
 		ProcessedRev: rev,
 	}
@@ -155,8 +153,8 @@ func importsHandler(w http.ResponseWriter, req *http.Request, importPath, rev st
 	}
 
 	data := struct {
-		FrontendState      page.State // TODO: Maybe move Production, RawQuery, etc., here?
-		Production         bool
+		FrontendState      page.State // TODO: Maybe move RawQuery, etc., here?
+		AnalyticsHTML      template.HTML
 		RawQuery           string
 		Tabs               template.HTML
 		ImportPath         string
@@ -171,7 +169,7 @@ func importsHandler(w http.ResponseWriter, req *http.Request, importPath, rev st
 		AdditionalTestImports []string
 	}{
 		FrontendState:      frontendState,
-		Production:         *productionFlag,
+		AnalyticsHTML:      h.analyticsHTML,
 		RawQuery:           req.URL.RawQuery,
 		Tabs:               page.Tabs(req.URL.Path, req.URL.RawQuery),
 		ImportPath:         importPath,

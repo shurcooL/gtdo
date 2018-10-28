@@ -1,11 +1,10 @@
 {{define "head"}}
 <head>
-	<title>{{.ImportPath}} - Go Tools</title>
+{{.AnalyticsHTML}}	<title>{{.ImportPath}} - Go Tools</title>
 	<link href="/assets/fonts/fonts.css" rel="stylesheet" type="text/css" />
 	<link href="/assets/style.css" rel="stylesheet" type="text/css" />
 	<link href="/assets/selectlistview.css" media="all" rel="stylesheet" type="text/css" />
 	<link href="/assets/tableofcontents.css" media="all" rel="stylesheet" type="text/css" />
-	{{if .Production}}{{template "GA"}}{{end}}
 	<script type="text/javascript">
 		var StateJSON = "{{.FrontendState | json}}";
 	</script>

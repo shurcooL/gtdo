@@ -52,10 +52,11 @@ import (
 )
 
 var (
-	httpFlag        = flag.String("http", ":8080", "Listen for HTTP connections on this address.")
-	productionFlag  = flag.Bool("production", false, "Production mode.")
-	vcsStoreDirFlag = flag.String("vcs-store-dir", "", "Directory of vcs store (required).")
-	stateFileFlag   = flag.String("state-file", "", "File to save/load state.")
+	httpFlag          = flag.String("http", ":8080", "Listen for HTTP connections on this address.")
+	productionFlag    = flag.Bool("production", false, "Production mode.")
+	analyticsFileFlag = flag.String("analytics-file", "", "Optional path to file containing analytics HTML to insert at the beginning of <head>.")
+	vcsStoreDirFlag   = flag.String("vcs-store-dir", "", "Directory of vcs store (required).")
+	stateFileFlag     = flag.String("state-file", "", "File to save/load state.")
 )
 
 func main() {
@@ -74,13 +75,22 @@ func main() {
 		cancel()
 	}()
 
-	err := run(ctx)
+	err := run(ctx, *analyticsFileFlag)
 	if err != nil {
 		log.Fatalln(err)
 	}
 }
 
-func run(ctx context.Context) error {
+func run(ctx context.Context, analyticsFile string) error {
+	var analyticsHTML []byte
+	if analyticsFile != "" {
+		var err error
+		analyticsHTML, err = ioutil.ReadFile(analyticsFile)
+		if err != nil {
+			return err
+		}
+	}
+
 	err := loadTemplates()
 	if err != nil {
 		return fmt.Errorf("loadTemplates: %v", err)
@@ -94,7 +104,10 @@ func run(ctx context.Context) error {
 	}
 	fmt.Printf("using local Go version %q\n", LocalGoVersion)
 
-	http.HandleFunc("/", codeHandler)
+	h := &handler{
+		analyticsHTML: template.HTML(analyticsHTML),
+	}
+	http.HandleFunc("/", h.codeHandler)
 	http.Handle("/favicon.ico", http.NotFoundHandler())
 	http.HandleFunc("/robots.txt", func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
@@ -119,7 +132,7 @@ Disallow: /
 	defer RepoUpdater.Close()
 	sse = make(map[importPathBranch][]pageViewer)
 	http.HandleFunc("/-/events", eventsHandler)
-	http.Handle("/-/debug", handler(func(w io.Writer, req *http.Request) error {
+	http.Handle("/-/debug", textHandler(func(w io.Writer, req *http.Request) error {
 		fmt.Fprintln(w, "len(RepoUpdater.queue):", len(RepoUpdater.queue))
 		fmt.Fprintln(w)
 		fmt.Fprintln(w, "events:")
@@ -191,7 +204,11 @@ func loadTemplates() error {
 	return err
 }
 
-func codeHandler(w http.ResponseWriter, req *http.Request) {
+type handler struct {
+	analyticsHTML template.HTML
+}
+
+func (h *handler) codeHandler(w http.ResponseWriter, req *http.Request) {
 	if strings.HasPrefix(req.URL.Path, "/apple-touch-icon") {
 		http.NotFound(w, req)
 		return
@@ -220,7 +237,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	if req.URL.Path == "/" {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		recentlyViewed.mu.RLock()
-		recentlyViewed.Production = *productionFlag
+		recentlyViewed.AnalyticsHTML = h.analyticsHTML
 		err := t.ExecuteTemplate(w, "index.html.tmpl", recentlyViewed)
 		recentlyViewed.mu.RUnlock()
 		if err != nil {
@@ -250,13 +267,13 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 
 	switch req.URL.Query().Get("tab") {
 	case "summary":
-		summaryHandler(w, req, importPath, rev)
+		h.summaryHandler(w, req, importPath, rev)
 		return
 	case "imports":
-		importsHandler(w, req, importPath, rev)
+		h.importsHandler(w, req, importPath, rev)
 		return
 	case "dependents":
-		dependentsHandler(w, req, importPath, rev)
+		h.dependentsHandler(w, req, importPath, rev)
 		return
 	}
 
@@ -269,7 +286,6 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	frontendState := page.State{
-		Production:   *productionFlag,
 		ImportPath:   importPath,
 		ProcessedRev: rev,
 	}
@@ -285,8 +301,8 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	data := struct {
-		FrontendState      page.State // TODO: Maybe move Production, RawQuery, etc., here?
-		Production         bool
+		FrontendState      page.State // TODO: Maybe move RawQuery, etc., here?
+		AnalyticsHTML      template.HTML
 		RawQuery           string
 		Tabs               template.HTML
 		ImportPath         string
@@ -300,7 +316,7 @@ func codeHandler(w http.ResponseWriter, req *http.Request) {
 		Tests              template.HTML // Checkbox for tests.
 	}{
 		FrontendState:      frontendState,
-		Production:         *productionFlag,
+		AnalyticsHTML:      h.analyticsHTML,
 		RawQuery:           req.URL.RawQuery,
 		Tabs:               page.Tabs(req.URL.Path, req.URL.RawQuery),
 		ImportPath:         importPath,
