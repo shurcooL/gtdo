@@ -42,6 +42,7 @@ import (
 	"github.com/shurcooL/octicon"
 	"github.com/shurcooL/vcsstate"
 	"github.com/sourcegraph/annotate"
+	"golang.org/x/crypto/acme/autocert"
 	"golang.org/x/net/html"
 	"golang.org/x/net/http/httpguts"
 	go_vcs "golang.org/x/tools/go/vcs"
@@ -53,6 +54,7 @@ import (
 
 var (
 	httpFlag          = flag.String("http", ":8080", "Listen for HTTP connections on this address.")
+	autocertFlag      = flag.String("autocert", "", `If non-empty, use autocert with the specified domain (e.g., -autocert="example.com").`)
 	productionFlag    = flag.Bool("production", false, "Production mode.")
 	analyticsFileFlag = flag.String("analytics-file", "", "Optional path to file containing analytics HTML to insert at the beginning of <head>.")
 	vcsStoreDirFlag   = flag.String("vcs-store-dir", "", "Directory of vcs store (required).")
@@ -159,9 +161,17 @@ Disallow: /
 
 	log.Println("Starting HTTP server.")
 
-	err = server.ListenAndServe()
-	if err != http.ErrServerClosed {
-		log.Println("server.ListenAndServe:", err)
+	switch *autocertFlag {
+	case "":
+		err := server.ListenAndServe()
+		if err != http.ErrServerClosed {
+			log.Println("server.ListenAndServe:", err)
+		}
+	default:
+		err := server.Serve(autocert.NewListener(*autocertFlag))
+		if err != http.ErrServerClosed {
+			log.Println("server.Serve:", err)
+		}
 	}
 
 	log.Println("Ended HTTP server.")
