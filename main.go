@@ -6,7 +6,6 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -20,6 +19,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path"
 	"path/filepath"
@@ -29,7 +29,6 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
-	"github.com/shurcooL/frontend/checkbox"
 	"github.com/shurcooL/frontend/select_menu"
 	"github.com/shurcooL/go/printerutil"
 	"github.com/shurcooL/gtdo/assets"
@@ -40,14 +39,10 @@ import (
 	"github.com/shurcooL/httpfs/html/vfstemplate"
 	"github.com/shurcooL/httpgzip"
 	"github.com/shurcooL/octicon"
-	"github.com/shurcooL/vcsstate"
 	"github.com/sourcegraph/annotate"
 	"golang.org/x/crypto/acme/autocert"
 	"golang.org/x/net/html"
 	"golang.org/x/net/http/httpguts"
-	go_vcs "golang.org/x/tools/go/vcs"
-	"golang.org/x/tools/godoc/vfs"
-	"sourcegraph.com/sourcegraph/go-vcs/vcs"
 	_ "sourcegraph.com/sourcegraph/go-vcs/vcs/git"
 	_ "sourcegraph.com/sourcegraph/go-vcs/vcs/hg"
 )
@@ -57,17 +52,10 @@ var (
 	autocertFlag      = flag.String("autocert", "", `If non-empty, use autocert with the specified domain (e.g., -autocert="example.com").`)
 	productionFlag    = flag.Bool("production", false, "Production mode.")
 	analyticsFileFlag = flag.String("analytics-file", "", "Optional path to file containing analytics HTML to insert at the beginning of <head>.")
-	vcsStoreDirFlag   = flag.String("vcs-store-dir", "", "Directory of vcs store (required).")
-	stateFileFlag     = flag.String("state-file", "", "File to save/load state.")
 )
 
 func main() {
 	flag.Parse()
-	if *vcsStoreDirFlag == "" {
-		fmt.Fprintln(os.Stderr, "-vcs-store-dir flag is required")
-		flag.Usage()
-		os.Exit(2)
-	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
@@ -98,14 +86,6 @@ func run(ctx context.Context, analyticsFile string) error {
 		return fmt.Errorf("loadTemplates: %v", err)
 	}
 
-	vs = &localVCSStore{dir: *vcsStoreDirFlag}
-
-	LocalGoVersion, err = localGoVersion()
-	if err != nil {
-		return fmt.Errorf("no local Go version available: %v", err)
-	}
-	fmt.Printf("using local Go version %q\n", LocalGoVersion)
-
 	h := &handler{
 		analyticsHTML: template.HTML(analyticsHTML),
 	}
@@ -125,29 +105,6 @@ Disallow: /
 
 	fontsHandler := httpgzip.FileServer(assets.Fonts, httpgzip.FileServerOptions{ServeError: httpgzip.Detailed})
 	http.Handle("/assets/fonts/", http.StripPrefix("/assets/fonts", fontsHandler))
-
-	if *stateFileFlag != "" {
-		_ = loadState(*stateFileFlag)
-	}
-
-	RepoUpdater = NewRepoUpdater()
-	defer RepoUpdater.Close()
-	sse = make(map[importPathBranch][]pageViewer)
-	http.HandleFunc("/-/events", eventsHandler)
-	http.Handle("/-/debug", textHandler(func(w io.Writer, req *http.Request) error {
-		fmt.Fprintln(w, "len(RepoUpdater.queue):", len(RepoUpdater.queue))
-		fmt.Fprintln(w)
-		fmt.Fprintln(w, "events:")
-		sseMu.Lock()
-		for importPathBranch, pageViewers := range sse {
-			fmt.Fprintf(w, "%#v - %v\n", importPathBranch, len(pageViewers))
-		}
-		if len(sse) == 0 {
-			fmt.Fprintf(w, "-")
-		}
-		sseMu.Unlock()
-		return nil
-	}))
 
 	server := &http.Server{Addr: *httpFlag, Handler: topMux{}}
 
@@ -176,10 +133,6 @@ Disallow: /
 
 	log.Println("Ended HTTP server.")
 
-	if *stateFileFlag != "" {
-		_ = saveState(*stateFileFlag)
-	}
-
 	return nil
 }
 
@@ -188,10 +141,9 @@ var t *template.Template
 func loadTemplates() error {
 	var err error
 	t = template.New("").Funcs(template.FuncMap{
-		"commitId":      func(commitId vcs.CommitID) vcs.CommitID { return commitId[:8] },
-		"time":          humanize.Time,
-		"fullQuery":     fullQuery,
-		"importPathURL": importPathURL,
+		"time":      humanize.Time,
+		"fullQuery": fullQuery,
+		//"importPathURL": importPathURL,
 		"octicon": func(name string) (template.HTML, error) {
 			icon := octicon.Icon(name)
 			if icon == nil {
@@ -245,16 +197,7 @@ func (h *handler) codeHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if req.URL.Path == "/" {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		recentlyViewed.mu.RLock()
-		recentlyViewed.AnalyticsHTML = h.analyticsHTML
-		err := t.ExecuteTemplate(w, "index.html.tmpl", recentlyViewed)
-		recentlyViewed.mu.RUnlock()
-		if err != nil {
-			log.Printf("t.ExecuteTemplate: %v\n", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+		http.Error(w, "404 Not Found", http.StatusNotFound)
 		return
 	}
 
@@ -275,41 +218,97 @@ func (h *handler) codeHandler(w http.ResponseWriter, req *http.Request) {
 
 	log.Printf("req: importPath=%q rev=%q tab=%v, ref=%q, ua=%q\n", importPath, rev, req.URL.Query().Get("tab"), req.Referer(), req.UserAgent())
 
-	switch req.URL.Query().Get("tab") {
-	case "summary":
-		h.summaryHandler(w, req, importPath, rev)
-		return
-	case "imports":
-		h.importsHandler(w, req, importPath, rev)
-		return
-	case "dependents":
-		h.dependentsHandler(w, req, importPath, rev)
-		return
-	}
-
-	source, bpkg, repoSpec, repoImportPath, commit, fs, branches, defaultBranch, err := try(importPath, rev)
-	log.Println("using source:", source)
+	/*_, bpkg, _, repoImportPath, commit, fs, branches, defaultBranch, err := try(importPath, rev)
 	if err != nil {
 		log.Println("try:", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}*/
+
+	// Make a temporary directory.
+	tempDir, err := ioutil.TempDir("", "gtdo_space_")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
+	fmt.Printf("temp dir: %q\n", tempDir)
+	//defer os.RemoveAll(tempDir)
+
+	// Initialize an empty module in the temporary directory.
+	err = ioutil.WriteFile(filepath.Join(tempDir, "go.mod"), []byte("module temp\n"), 0600)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Resolve package@query -> module@version.
+	importPathRev := importPath
+	if rev != "" {
+		importPathRev += "@" + rev
+	}
+	cmd := exec.CommandContext(req.Context(), "go", "get", "-d", importPathRev)
+	cmd.Dir = tempDir
+	err = cmd.Run()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Get module@version.
+	cmd = exec.CommandContext(req.Context(), "go", "list", "-json", importPath)
+	cmd.Dir = tempDir
+	out, err := cmd.Output()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	var pkgInfo struct {
+		Dir    string
+		Module struct {
+			Path    string
+			Version string
+			Time    time.Time
+		}
+	}
+	err = json.Unmarshal(out, &pkgInfo)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// List module versions.
+	cmd = exec.CommandContext(req.Context(), "go", "list", "-json", "-m", "-versions", pkgInfo.Module.Path)
+	cmd.Dir = tempDir
+	out, err = cmd.Output()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	var modInfo struct {
+		Versions []string
+	}
+	err = json.Unmarshal(out, &modInfo)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Load package.
+	bpkg, err := build.Default.ImportDir(pkgInfo.Dir, build.ImportComment)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	//var fs http.FileSystem = http.Dir(bpkg.Dir)
 
 	frontendState := page.State{
-		ImportPath:   importPath,
-		ProcessedRev: rev,
-	}
-	if frontendState.ProcessedRev == "" && len(branches) != 0 {
-		frontendState.ProcessedRev = defaultBranch
-	}
-	if repoSpec != nil {
-		frontendState.RepoSpec.VCSType = repoSpec.vcsType
-		frontendState.RepoSpec.CloneURL = repoSpec.cloneURL
-	}
-	if commit != nil {
-		frontendState.CommitID = string(commit.ID)
+		ImportPath: importPath,
 	}
 
+	type version struct {
+		Name string
+		Time time.Time
+	}
 	data := struct {
 		FrontendState      page.State // TODO: Maybe move RawQuery, etc., here?
 		AnalyticsHTML      template.HTML
@@ -317,7 +316,7 @@ func (h *handler) codeHandler(w http.ResponseWriter, req *http.Request) {
 		Tabs               template.HTML
 		ImportPath         string
 		ImportPathElements template.HTML // Import path with linkified elements.
-		Commit             *vcs.Commit
+		Version            version
 		DirExists          bool
 		Bpkg               *build.Package
 		Folders            []string
@@ -325,23 +324,26 @@ func (h *handler) codeHandler(w http.ResponseWriter, req *http.Request) {
 		Branches           template.HTML // Select menu for branches.
 		Tests              template.HTML // Checkbox for tests.
 	}{
-		FrontendState:      frontendState,
-		AnalyticsHTML:      h.analyticsHTML,
-		RawQuery:           req.URL.RawQuery,
-		Tabs:               page.Tabs(req.URL.Path, req.URL.RawQuery),
+		FrontendState: frontendState,
+		AnalyticsHTML: h.analyticsHTML,
+		RawQuery:      req.URL.RawQuery,
+		//Tabs:               page.Tabs(req.URL.Path, req.URL.RawQuery),
 		ImportPath:         importPath,
-		ImportPathElements: page.ImportPathElementsHTML(repoImportPath, importPath, req.URL.RawQuery),
-		Commit:             commit,
-		DirExists:          fs != nil,
-		Bpkg:               bpkg,
-		Tests:              checkbox.New(false, req.URL.Query(), testsQueryParameter),
+		ImportPathElements: page.ImportPathElementsHTML(pkgInfo.Module.Path, importPath, req.URL.RawQuery),
+		Version: version{
+			Name: pkgInfo.Module.Version,
+			Time: pkgInfo.Module.Time,
+		},
+		DirExists: true, //fs != nil,
+		Bpkg:      bpkg,
+		//Tests:     checkbox.New(false, req.URL.Query(), testsQueryParameter),
 	}
 
-	// Folders.
-	if fs != nil {
-		fis, err := fs.ReadDir("/virtual-go-workspace/src/" + importPath)
+	// List subdirectories.
+	{
+		fis, err := ioutil.ReadDir(bpkg.Dir)
 		if err != nil {
-			log.Println("fs.ReadDir(importPath):", err)
+			log.Println("ReadDir(bpkg.Dir):", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -354,7 +356,8 @@ func (h *handler) codeHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Branches.
-	if len(branches) != 0 {
+	if branches := modInfo.Versions; len(branches) != 0 {
+		defaultBranch := pkgInfo.Module.Version // HACK, TODO: Compute better, if possible.
 		data.Branches = select_menu.New(branches, defaultBranch, req.URL.Query(), gtdo.RevisionQueryParameter)
 	}
 
@@ -379,13 +382,13 @@ func (h *handler) codeHandler(w http.ResponseWriter, req *http.Request) {
 		sort.Strings(goFiles)
 
 		for _, goFile := range goFiles {
-			fi, err := fs.Stat(path.Join(bpkg.Dir, goFile))
+			file, err := os.Open(path.Join(bpkg.Dir, goFile))
 			if err != nil {
-				panic(fmt.Errorf("%v: fs.Stat(%q): %v", fs.String(), path.Join(bpkg.Dir, goFile), err))
+				panic(fmt.Errorf("Open(%q): %v", path.Join(bpkg.Dir, goFile), err))
 			}
-			file, err := fs.Open(path.Join(bpkg.Dir, goFile))
+			fi, err := file.Stat()
 			if err != nil {
-				panic(fmt.Errorf("%v: fs.Open(%q): %v", fs.String(), path.Join(bpkg.Dir, goFile), err))
+				panic(fmt.Errorf("Stat(%q): %v", path.Join(bpkg.Dir, goFile), err))
 			}
 			src, err := ioutil.ReadAll(file)
 			if err != nil {
@@ -436,7 +439,7 @@ func (h *handler) codeHandler(w http.ResponseWriter, req *http.Request) {
 								if err != nil {
 									continue
 								}
-								url := importPathURL(pathValue, repoImportPath, req.URL.RawQuery)
+								url := importPathURL(pathValue, req.URL.RawQuery)
 								anns = append(anns, annotateNode(fset, pathLit, fmt.Sprintf(`<a href="%s">`, url), `</a>`, 1))
 							}
 						case token.TYPE:
@@ -508,300 +511,21 @@ func (h *handler) codeHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	sendToTopMaybe(bpkg)
-}
-
-// sendToTopMaybe sends package to top, if bpkg is not nil and doesn't have a conflicting import comment.
-func sendToTopMaybe(bpkg *build.Package) {
-	if bpkg == nil {
-		return
-	}
-	conflictingImportComment := bpkg.ImportComment != "" && bpkg.ImportComment != bpkg.ImportPath
-	log.Printf("ImportComment = %q, conflicting import comment: %v\n", bpkg.ImportComment, conflictingImportComment)
-	if bpkg.Name != "" && !conflictingImportComment {
-		sendToTop(bpkg.ImportPath)
-	}
-	// RepoUpdater.Enqueue(*repoSpec) now happens via SSE path, later on.
-	// It needs to happen there, so that by the time we may have a response,
-	// it can be directly sent. Otherwise we might have an update before the SSE client connected.
-}
-
-// Try local first, if not, try remote, if not, clone/update remote and try one last time.
-func try(importPath, rev string) (
-	source string,
-	bpkg *build.Package,
-	repoSpec *repoSpec,
-	repoImportPath string,
-	commit *vcs.Commit,
-	fs vfs.FileSystem,
-	branchNames []string,
-	defaultBranch string,
-	err error,
-) {
-	var repo vcs.Repository
-	var commitId vcs.CommitID
-	if isLocal(importPath) {
-		repo, repoSpec, commitId, defaultBranch, err = tryRemoteGoroot(rev)
-		if err != nil {
-			return source, nil, nil, "", nil, nil, nil, "", err
-		}
-		source = "remote-goroot"
-		repoImportPath = strings.Split(importPath, "/")[0]
-	} else {
-		repo, repoSpec, repoImportPath, commitId, defaultBranch, err = tryRemote(importPath, rev)
-		if err != nil {
-			return source, nil, nil, "", nil, nil, nil, "", err
-		}
-		source = "remote"
-	}
-
-	branchNames, err = branchesAndTags(repo)
-	if err != nil {
-		return source, nil, nil, "", nil, nil, nil, "", err
-	}
-
-	commit, err = repo.GetCommit(commitId)
-	if err != nil {
-		return source, nil, nil, "", nil, nil, nil, "", err
-	}
-
-	fs, err = repo.FileSystem(commitId)
-	if err != nil {
-		return source, nil, nil, "", nil, nil, nil, "", err
-	}
-
-	switch source {
-	case "remote-goroot":
-		fs = NewPrefixFS(fs, "/virtual-go-workspace")
-	default:
-		fs = NewPrefixFS(fs, "/virtual-go-workspace/src/"+repoImportPath)
-	}
-
-	// Verify the import path is an existing subdirectory (it may exist on one branch, but not another).
-	if fi, err := fs.Stat("/virtual-go-workspace/src/" + importPath); err != nil || !fi.IsDir() {
-		return source, nil, repoSpec, repoImportPath, nil, nil, branchNames, defaultBranch, nil
-	}
-
-	context := buildContextUsingFS(fs)
-	switch source {
-	case "remote-goroot":
-		context.GOROOT = "/virtual-go-workspace"
-	default:
-		context.GOPATH = "/virtual-go-workspace"
-	}
-	bpkg, err = context.Import(importPath, "", build.ImportComment)
-	_ = err // TODO: Deal with returned error.
-	if bpkg == nil || bpkg.Dir == "" {
-		return source, nil, repoSpec, repoImportPath, commit, fs, branchNames, defaultBranch, nil
-	}
-
-	return source, bpkg, repoSpec, repoImportPath, commit, fs, branchNames, defaultBranch, nil
-}
-
-// isLocal reports whether the import path is a package that can only
-// be in a local GOROOT or GOPATH, but not available remotely. It checks
-// if the first element (i.e., the domain name) contains a dot.
-func isLocal(importPath string) bool {
-	return !strings.Contains(strings.Split(importPath, "/")[0], ".")
-}
-
-func tryRemoteGoroot(rev string) (
-	repo vcs.Repository,
-	_ *repoSpec,
-	commitId vcs.CommitID,
-	defaultBranch string,
-	err error,
-) {
-	u, err := url.Parse("https://go.googlesource.com/go")
-	if err != nil {
-		return nil, nil, "", "", err
-	}
-	repo, _, err = vs.Repository("git", u)
-	if err != nil {
-		return nil, nil, "", "", err
-	}
-
-	// Use local Go version as default.
-	defaultBranch = LocalGoVersion
-
-	var local bool
-	if rev != "" {
-		local = rev == LocalGoVersion
-		commitId, err = repo.ResolveRevision(rev)
-	} else {
-		local = true
-		commitId, err = repo.ResolveTag(defaultBranch)
-	}
-	if err != nil {
-		_, err1 := repo.(vcs.RemoteUpdater).UpdateEverything(vcs.RemoteOpts{})
-		fmt.Println("tryRemote: UpdateEverything:", err1)
-		if err1 != nil {
-			return nil, nil, "", "", NewMultipleErrors(err, err1)
-		}
-
-		if rev != "" {
-			commitId, err1 = repo.ResolveRevision(rev)
-		} else {
-			commitId, err1 = repo.ResolveTag(defaultBranch)
-		}
-		if err1 != nil {
-			return nil, nil, "", "", NewMultipleErrors(err, err1)
-		}
-		fmt.Println("tryRemote: worked on SECOND try")
-	} else {
-		fmt.Println("tryRemote: worked on first try")
-	}
-
-	if local {
-		repo = repoWithLocal{
-			Repository:     repo,
-			localGoVersion: commitId,
-		}
-	}
-
-	rs := repoSpec{vcsType: "git", cloneURL: "https://go.googlesource.com/go"} // TODO: Avoid having to return a pointer. It's not optional in this context.
-	return repo, &rs, commitId, defaultBranch, nil
-}
-
-type repoWithLocal struct {
-	vcs.Repository
-	localGoVersion vcs.CommitID
-}
-
-func (r repoWithLocal) FileSystem(at vcs.CommitID) (vfs.FileSystem, error) {
-	if at == r.localGoVersion {
-		fmt.Println("using LocalGoVersion:", at)
-		return vfs.OS(build.Default.GOROOT), nil
-	}
-	fmt.Println("using vcs repo", at)
-	return r.Repository.FileSystem(at)
-}
-
-func tryRemote(importPath, rev string) (
-	repo vcs.Repository,
-	_ *repoSpec,
-	repoImportPath string,
-	commitId vcs.CommitID,
-	defaultBranch string,
-	err error,
-) {
-	if vs == nil {
-		return nil, nil, "", "", "", errors.New("no backing vcsstore specified")
-	}
-
-	rr, err := go_vcs.RepoRootForImportPath(importPath, true)
-	if err != nil {
-		return nil, nil, "", "", "", err
-	}
-	if rr.VCS.Cmd != "git" && rr.VCS.Cmd != "hg" {
-		return nil, nil, "", "", "", fmt.Errorf("unsupported rr.VCS.Cmd: %v", rr.VCS.Cmd)
-	}
-
-	vcsRepo, err := vcsstate.NewVCS(rr.VCS)
-	if err != nil {
-		return nil, nil, "", "", "", err
-	}
-
-	u, err := url.Parse(rr.Repo)
-	if err != nil {
-		return nil, nil, "", "", "", err
-	}
-	var repoDir string
-	repo, repoDir, err = vs.Repository(rr.VCS.Cmd, u)
-	if err != nil {
-		return nil, nil, "", "", "", err
-	}
-
-	// Use remotely checked out branch as the default branch for remote repos.
-	defaultBranch, _, err = vcsRepo.RemoteBranchAndRevision(repoDir)
-	if err != nil {
-		return nil, nil, "", "", "", err
-	}
-
-	if rev != "" {
-		commitId, err = repo.ResolveRevision(rev)
-	} else {
-		commitId, err = repo.ResolveBranch(defaultBranch)
-	}
-	if err != nil {
-		_, err1 := repo.(vcs.RemoteUpdater).UpdateEverything(vcs.RemoteOpts{})
-		fmt.Println("tryRemote: UpdateEverything:", err1)
-		if err1 != nil {
-			return nil, nil, "", "", "", NewMultipleErrors(err, err1)
-		}
-
-		if rev != "" {
-			commitId, err1 = repo.ResolveRevision(rev)
-		} else {
-			commitId, err1 = repo.ResolveBranch(defaultBranch)
-		}
-		if err1 != nil {
-			return nil, nil, "", "", "", NewMultipleErrors(err, err1)
-		}
-		fmt.Println("tryRemote: worked on SECOND try")
-	} else {
-		fmt.Println("tryRemote: worked on first try")
-	}
-
-	rs := repoSpec{vcsType: rr.VCS.Cmd, cloneURL: rr.Repo} // TODO: Avoid having to return a pointer. It's not optional in this context.
-	return repo, &rs, rr.Root, commitId, defaultBranch, nil
-}
-
-func buildContextUsingFS(fs vfs.FileSystem) build.Context {
-	var context build.Context = build.Default
-
-	//context.GOROOT = ""
-	//context.GOPATH = "/"
-	context.JoinPath = path.Join
-	context.IsAbsPath = path.IsAbs
-	context.SplitPathList = func(list string) []string { return strings.Split(list, ":") }
-	context.IsDir = func(path string) bool {
-		//fmt.Printf("context.IsDir %q\n", path)
-		if fi, err := fs.Stat(path); err == nil && fi.IsDir() {
-			return true
-		}
-		return false
-	}
-	context.HasSubdir = func(root, dir string) (rel string, ok bool) {
-		//fmt.Printf("context.HasSubdir %q %q\n", root, dir)
-		if context.IsDir(path.Join(root, dir)) {
-			return dir, true
-		} else {
-			return "", false
-		}
-	}
-	context.ReadDir = func(dir string) (fi []os.FileInfo, err error) {
-		//fmt.Printf("context.ReadDir %q\n", dir)
-		return fs.ReadDir(dir)
-	}
-	context.OpenFile = func(path string) (r io.ReadCloser, err error) {
-		//fmt.Printf("context.OpenFile %q\n", path)
-		return fs.Open(path)
-	}
-
-	return context
 }
 
 // importPathURL returns a URL to the target importPath, preserving query parameters.
 //
-// It strips out the revision parameter if the target package lies outside of the current repository.
-func importPathURL(importPath, repoImportPath string, rawQuery string) template.URL {
+// It strips out the revision parameter.
+func importPathURL(importPath string, rawQuery string) template.URL {
 	query, _ := url.ParseQuery(rawQuery)
-	// If it crosses the repository boundary, do not persist the revision.
-	if !packageInsideRepo(importPath, repoImportPath) {
-		query.Del(gtdo.RevisionQueryParameter)
-	}
+	// Do not persist the revision.
+	// TODO: Read go.mod, use appropriate revision, etc.
+	query.Del(gtdo.RevisionQueryParameter)
 	url := url.URL{
 		Path:     "/" + importPath,
 		RawQuery: query.Encode(),
 	}
 	return template.URL(url.String())
-}
-
-// packageInsideRepo returns true iff importPath package is inside repository repoImportPath.
-func packageInsideRepo(importPath, repoImportPath string) bool {
-	return strings.HasPrefix(importPath, repoImportPath)
 }
 
 // fullQuery returns rawQuery with a "?" prefix if rawQuery is non-empty.
@@ -810,23 +534,6 @@ func fullQuery(rawQuery string) string {
 		return ""
 	}
 	return "?" + rawQuery
-}
-
-// NewMultipleErrors returns an error that consists of 2 or more errors.
-func NewMultipleErrors(err0, err1 error, errs ...error) error {
-	return append(multipleErrors{err0, err1}, errs...)
-}
-
-// multipleErrors should consist of 2 or more errors.
-type multipleErrors []error
-
-func (me multipleErrors) Error() string {
-	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "%d errors:\n", len(me))
-	for _, err := range me {
-		fmt.Fprintln(&buf, err.Error())
-	}
-	return buf.String()
 }
 
 var linkOcticon = func() string {

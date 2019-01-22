@@ -1,5 +1,3 @@
-{{define "commitId"}}<abbr id="commit-id" title="{{.}}"><code>{{commitId .}}</code></abbr>{{end}}
+{{define "version"}}<abbr id="commit-id" title="{{.}}"><code>{{.}}</code></abbr>{{end}}
 
 {{define "time"}}<abbr title="{{.}}">{{time .}}</abbr>{{end}}
-
-{{define "outdated"}}<div class="outdated" id="outdated-box"><span class="content">This page is out of date. <a href="/{{$.ImportPath}}{{fullQuery $.RawQuery}}">Refresh</a> to see the latest.</span><span class="close"><a href="javascript:HideOutdatedBox();">{{octicon "x"}}</a></span></div>{{end}}
