@@ -635,7 +635,7 @@ func tryRemoteGoroot(rev string) (
 	}
 	if err != nil {
 		_, err1 := repo.(vcs.RemoteUpdater).UpdateEverything(vcs.RemoteOpts{})
-		fmt.Println("tryRemote: UpdateEverything:", err1)
+		fmt.Println("tryRemoteGoroot: UpdateEverything:", err1)
 		if err1 != nil {
 			return nil, nil, "", "", NewMultipleErrors(err, err1)
 		}
@@ -648,9 +648,9 @@ func tryRemoteGoroot(rev string) (
 		if err1 != nil {
 			return nil, nil, "", "", NewMultipleErrors(err, err1)
 		}
-		fmt.Println("tryRemote: worked on SECOND try")
+		fmt.Println("tryRemoteGoroot: worked on SECOND try")
 	} else {
-		fmt.Println("tryRemote: worked on first try")
+		fmt.Println("tryRemoteGoroot: worked on first try")
 	}
 
 	if local {
