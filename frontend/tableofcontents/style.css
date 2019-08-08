@@ -23,12 +23,25 @@ div.toc-entry {
 
 .toc-entry {
 	color: inherit;
-	background: white;
+	background-color: white;
 }
 .toc-entry:hover {
-	background: rgb(92.5%, 92.5%, 92.5%);
+	background-color: rgb(92.5%, 92.5%, 92.5%);
 }
 .toc-highlighted, .toc-highlighted:hover, a.toc-highlighted:hover {
 	color: white;
-	background: rgb(21%, 45%, 84%);
+	background-color: rgb(21%, 45%, 84%);
+}
+
+@media (prefers-color-scheme: dark) {
+	.toc-entry {
+		background-color: hsl(210, 15%, 22%);
+	}
+	.toc-entry:hover {
+		background-color: hsl(210, 15%, 32%);
+	}
+	.toc-highlighted, .toc-highlighted:hover, a.toc-highlighted:hover {
+		color: white;
+		background-color: rgb(37, 80, 149);
+	}
 }

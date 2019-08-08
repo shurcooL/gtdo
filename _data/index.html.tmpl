@@ -1,17 +1,17 @@
 {{define "header"}}
-<div class="header" style="width: 100%; background-color: hsl(209, 51%, 92%); font-size: 14px;">
+<header style="width: 100%; font-size: 14px;">
 	<div class="center-max-width">
 		<a class="black" style="margin-left: 30px; padding: 15px; display: inline-block;" href="/"><strong>Go Tools</strong></a>
 	</div>
-</div>
+</header>
 {{end}}
 
 {{define "footer"}}
-<div style="position: absolute; bottom: 0; left: 0; width: 100%; text-align: right; background-color: hsl(209, 51%, 92%);">
+<footer style="position: absolute; bottom: 0; left: 0; width: 100%; text-align: right;">
 	<div class="center-max-width">
 		<span style="margin-right: 15px; padding: 15px; display: inline-block;"><a href="https://github.com/shurcooL/gtdo/issues" target="_blank">Report an issue</a></span>
 	</div>
-</div>
+</footer>
 {{end}}
 
 <html>
@@ -27,7 +27,7 @@
 				<div style="padding-bottom: 50px;">
 					<article class="home-page" style="padding: 30px;">
 						<p>Read the source code of any Go package on a single page. (<a href="https://www.youtube.com/watch?v=twjxYEubmzs">2 minute screencast</a>)</p>
-						<span class="import-path-container" style="background-color: #f2f2f2; padding: 20px; display: inline-block;">
+						<span class="import-path-container" style="padding: 20px; display: inline-block;">
 							<input id="import-path" placeholder="import/path" autofocus onkeydown="if (event.keyCode != 13) { return; }; window.location = &quot;/&quot; + document.getElementById(&quot;import-path&quot;).value;">
 							<button onclick="window.location = &quot;/&quot; + document.getElementById(&quot;import-path&quot;).value;">Go</button>
 						</span>

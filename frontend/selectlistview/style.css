@@ -28,16 +28,34 @@
 
 .gts-entry {
 	cursor: default;
-	background: white;
+	background-color: white;
 
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
 .gts-entry:hover {
-	background: rgb(92.5%, 92.5%, 92.5%);
+	background-color: rgb(92.5%, 92.5%, 92.5%);
 }
 .gts-highlighted, .gts-highlighted:hover {
 	color: white;
-	background: rgb(21%, 45%, 84%);
+	background-color: rgb(21%, 45%, 84%);
+}
+
+@media (prefers-color-scheme: dark) {
+	#gts-command {
+		color: white;
+		background-color: hsl(210, 15%, 22%);
+	}
+
+	.gts-entry {
+		background-color: hsl(210, 15%, 22%);
+	}
+	.gts-entry:hover {
+		background-color: hsl(210, 15%, 32%);
+	}
+	.gts-highlighted, .gts-highlighted:hover {
+		color: white;
+		background-color: rgb(37, 80, 149);
+	}
 }

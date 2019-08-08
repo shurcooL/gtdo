@@ -18,6 +18,10 @@ a.black:hover {
 	color: #4183c4;
 }
 
+header, footer {
+	background-color: hsl(209, 51%, 92%);
+}
+
 div.center-max-width {
 	max-width: 1000px;
 	margin-left: auto;
@@ -42,6 +46,9 @@ article.home-page {
 }
 article.home-page > *:first-child {
 	margin-top: 0;
+}
+article.home-page .import-path-container {
+	background-color: #f2f2f2;
 }
 
 article.tool-page {
@@ -168,7 +175,7 @@ div.selection {
 	width: 100%;
 }
 pre.file {
-	background: none !important;
+	background: none;
 }
 
 .highlight h3 {
@@ -198,3 +205,66 @@ pre.file {
 .highlight .str { color: rgb(80.4%, 0%, 0%); }
 .highlight .lit { color: rgb(0.8%, 2.4%, 100%); }
 .highlight .com { color: rgb(0%, 50.6%, 9.4%); }
+
+@media (prefers-color-scheme: dark) {
+	body, select {
+		color: hsl(219, 28%, 88%);
+		background-color: hsl(210, 15%, 22%);
+	}
+	a {
+		color: #0092bf;
+	}
+	a.black {
+		color: hsl(219, 28%, 88%);
+	}
+	a.black:hover {
+		color: #a5b1e0;
+	}
+	header, footer {
+		background-color: hsl(209, 51%, 21%);
+	}
+	article.home-page .import-path-container {
+		background-color: hsl(210, 15%, 18%);
+	}
+	article.home-page .import-path-container input, article.home-page .import-path-container button {
+		color: hsl(219, 28%, 88%);
+		background-color: hsl(210, 15%, 22%);
+	}
+	.anchor-icon {
+		color: hsl(219, 28%, 88%);
+	}
+	div.outdated {
+		background-color: hsl(41, 100%, 26%);
+		border-color: hsl(41, 100%, 34%);
+	}
+	div.highlight {
+		border: 1px solid hsl(210, 15%, 20%);
+	}
+	div.background {
+		background-color: hsl(210, 15%, 24%);
+	}
+	div.selection {
+		background-color: rgb(90, 74, 16);
+	}
+	pre.ln {
+		background-color: hsl(210, 15%, 24%);
+		border-right: 1px solid hsl(210, 15%, 20%);
+	}
+	span.ln:hover {
+		color: #d8d8d8;
+	}
+	.highlight .kwd { color: hsl(300, 30%, 68%); font-weight: normal; }
+	.highlight .dec { color: hsl(32, 93%, 66%); }
+	.highlight .str { color: hsl(114, 31%, 68%); }
+	.highlight .lit { color: hsl(357, 79%, 65%); font-style: italic; }
+	.highlight .com { color: hsl(221, 12%, 69%); }
+
+	/* primer-navigation */
+	.tabnav .tabnav-tabs .tabnav-tab {
+		color: hsl(219, 28%, 80%);
+	}
+	.tabnav .tabnav-tabs .tabnav-tab.selected {
+		color: hsl(219, 28%, 88%);
+		background-color: hsl(210, 15%, 22%);
+	}
+}
