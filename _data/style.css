@@ -152,7 +152,7 @@ div.outdated span.close a:hover {
 	tab-size: 4;
 	-moz-tab-size: 4;
 }
-code {
+pre, code {
 	font-family: "Go Mono";
 	font-size: 85%;
 }
@@ -194,7 +194,6 @@ pre.file {
 }
 
 .highlight pre {
-	font-family: "Go Mono";
 	font-size: 12px;
 	padding: 10px;
 	margin: 0;
@@ -229,6 +228,10 @@ pre.file {
 	article.home-page .import-path-container input, article.home-page .import-path-container button {
 		color: hsl(219, 28%, 88%);
 		background-color: hsl(210, 15%, 22%);
+	}
+	.doc-summary pre {
+		background-color: hsl(210, 15%, 28%);
+		border-color: hsl(210, 15%, 40%);
 	}
 	.anchor-icon {
 		color: hsl(219, 28%, 88%);
