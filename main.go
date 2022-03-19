@@ -69,13 +69,8 @@ func main() {
 		os.Exit(2)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		sigint := make(chan os.Signal, 1)
-		signal.Notify(sigint, os.Interrupt)
-		<-sigint
-		cancel()
-	}()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
 
 	err := run(ctx, *analyticsFileFlag)
 	if err != nil {
