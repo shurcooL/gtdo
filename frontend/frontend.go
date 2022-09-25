@@ -169,8 +169,13 @@ func MustScrollTo(event dom.Event, targetId string) {
 // expandLineSelection expands line selection if shift was held down when clicking a line number,
 // and it's in the same file as already highlighted. Otherwise return original targetId unmodified.
 func expandLineSelection(event dom.Event, targetId string) string {
-	me, ok := event.(*dom.MouseEvent)
-	if !(ok && me.ShiftKey && state.valid && state.start != 0) {
+	me, isMouseEvent := event.(*dom.MouseEvent)
+	if !isMouseEvent {
+		if pe, ok := event.(*dom.PointerEvent); ok {
+			me, isMouseEvent = pe.MouseEvent, true
+		}
+	}
+	if expand := isMouseEvent && me.ShiftKey && state.valid && state.start != 0; !expand {
 		return targetId
 	}
 	file, start, end := parseHash(targetId)
